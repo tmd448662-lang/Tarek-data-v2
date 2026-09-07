@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 
 """
-🔥 GURU SERVER BOT — Wingo 1M Predictor
-🧠 Algorithm: Sum of digits % 10 → BIG >= 5 else SMALL
+🔥 GURU + RGB FUSION BOT — Wingo 1M Predictor
+🧠 ENGINE 1: GURU (Digit Sum % 10)
+🧠 ENGINE 2: RGB (Pattern Index Based)
+✅ MATCH = PREDICTION পাঠাবে
+❌ NO MATCH = শুধু রেজাল্ট দেখাবে (কাউন্ট হবে না)
 📡 ORDER: RESULT → PREDICTION
-📊 HOURLY REPORT + RECOMMENDATION
+📊 HOURLY REPORT
 🤖 Bot: @Tarek3o
 """
 
@@ -13,29 +16,27 @@ import asyncio
 import time
 import requests
 import os
-import random
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 
-# ==================== TELEGRAM ====================
 try:
     from telegram import Bot
 except ImportError:
     print("❌ python-telegram-bot not installed! Run: pip install python-telegram-bot")
     exit(1)
 
-# ==================== 🆕 কনফিগারেশন (নতুন টোকেন + চ্যাট আইডি) ====================
+# ==================== কনফিগারেশন ====================
 BOT_TOKEN = "8632082751:AAEcUqV8hFs-Id0E9uL0ltvW-e6ybZkKcJ0"
-CHAT_ID = "6678981102"  # @Tarek3o এর আইডি
+CHAT_ID = "6678981102"
 API_URL = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
 
-# ==================== ওয়েব সার্ভার (Render/Railway এর জন্য) ====================
+# ==================== ওয়েব সার্ভার ====================
 class DummyServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"GURU SERVER BOT is running!")
+        self.wfile.write(b"GURU+RGB FUSION BOT is running!")
 
 def run_dummy_server():
     port = int(os.environ.get("PORT", 8080))
@@ -59,9 +60,10 @@ threading.Thread(target=keep_alive, daemon=True).start()
 bot = Bot(token=BOT_TOKEN)
 
 # ==================== গ্লোবাল ভেরিয়েবল ====================
-total_wins = 0
-total_losses = 0
-total_rounds = 0
+# শুধু MATCH এর স্ট্যাটস
+match_wins = 0
+match_losses = 0
+match_total = 0
 current_streak = 0
 best_streak = 0
 
@@ -69,11 +71,10 @@ history_data = []
 last_predicted_period = None
 last_predicted_signal = None
 last_predicted_num = None
-last_predicted_color = None
-last_predicted_conf = 0
+last_match_status = None
 prediction_sent_for_period = {}
 
-# ==================== হাওয়ারলি স্ট্যাটস ====================
+# ==================== হাওয়ারলি স্ট্যাটস (শুধু MATCH) ====================
 hourly_stats = {
     'total_rounds': 0,
     'total_wins': 0,
@@ -86,103 +87,73 @@ hourly_stats = {
 last_hour_report_time = time.time()
 
 # ============================================================
-# 🧠 GURU ALGORITHM — HTML এর মতো
+# 🧠 ENGINE 1: GURU ALGORITHM
 # ============================================================
 def guru_algorithm(period_number):
-    """
-    Period Number এর সব ডিজিটের যোগফল বের করে
-    যোগফলকে ১০ দিয়ে ভাগ করলে যে remainder আসে
-    ৫ বা তার বেশি হলে BIG, নাহলে SMALL
-    """
     str_period = str(period_number)
-    digit_sum = 0
-    for ch in str_period:
-        if ch.isdigit():
-            digit_sum += int(ch)
-    
+    digit_sum = sum(int(c) for c in str_period if c.isdigit())
     remainder = digit_sum % 10
-    is_big = remainder >= 5
-    
-    # রঙ নির্ধারণ (HTML এর COLOR_MAP অনুযায়ী)
-    color_map = {
-        0: 'VIOLET',
-        1: 'GREEN',
-        2: 'RED',
-        3: 'GREEN',
-        4: 'RED',
-        5: 'VIOLET',
-        6: 'RED',
-        7: 'GREEN',
-        8: 'RED',
-        9: 'GREEN'
-    }
-    
-    color_emoji = {
-        'VIOLET': '🟣',
-        'GREEN': '🟢',
-        'RED': '🔴'
-    }
-    
-    color = color_map.get(remainder, 'UNKNOWN')
-    emoji = color_emoji.get(color, '❓')
-    
-    # কনফিডেন্স (HTML এর মতো)
-    if is_big:
-        confidence = min(95, 70 + remainder * 5)
-    else:
-        confidence = min(95, 70 + (9 - remainder) * 5)
-    
-    return {
-        'prediction': 'BIG' if is_big else 'SMALL',
-        'number': remainder,
-        'digit_sum': digit_sum,
-        'remainder': remainder,
-        'color': color,
-        'emoji': emoji,
-        'confidence': confidence
-    }
+    pred = "BIG" if remainder >= 5 else "SMALL"
+    conf = 70 if pred == "BIG" else 60
+    return pred, remainder, conf
 
 # ============================================================
-# 🎯 রেকমেন্ডেশন জেনারেটর
+# 🧠 ENGINE 2: RGB ALGORITHM
 # ============================================================
-def generate_recommendation(pred, stats):
-    """প্রেডিকশনের ভিত্তিতে রেকমেন্ডেশন তৈরি করে"""
-    recs = []
-    
-    # কনফিডেন্স ভিত্তিক
-    if pred['confidence'] >= 85:
-        recs.append("🔥 HIGH CONFIDENCE — Strong signal! Consider higher stake.")
-    elif pred['confidence'] >= 70:
-        recs.append("⚡ MODERATE CONFIDENCE — Safe bet with normal stake.")
-    elif pred['confidence'] >= 55:
-        recs.append("⚠️ LOW CONFIDENCE — Bet small or wait for better signal.")
+def rgb_algorithm(period_number):
+    str_period = str(period_number)
+    if len(str_period) >= 5:
+        last5 = int(str_period[-5:])
     else:
-        recs.append("🔴 VERY LOW — Avoid betting this round.")
+        last5 = int(str_period)
     
-    # স্ট্রিক ভিত্তিক
-    if stats.get('current_streak', 0) >= 3:
-        if stats.get('streak_type') == 'WIN':
-            recs.append(f"🔥 {stats['current_streak']}x WIN STREAK — Ride the momentum!")
-        else:
-            recs.append(f"📉 {stats['current_streak']}x LOSS STREAK — Recovery mode, bet carefully.")
+    pattern_index = (last5 + 5) % 12
     
-    # প্যাটার্ন ভিত্তিক
-    if len(history_data) >= 5:
-        recent = [h['side'] for h in history_data[:5]]
-        big_count = recent.count('BIG')
-        if big_count >= 4:
-            recs.append("📊 Recent 5: 4+ BIGs — SMALL reversal possible soon.")
-        elif big_count <= 1:
-            recs.append("📊 Recent 5: 4+ SMALLs — BIG reversal possible soon.")
+    RGB_PATTERN = [
+        "BIG", "SMALL", "SMALL", "BIG",
+        "BIG", "SMALL", "BIG", "SMALL",
+        "SMALL", "BIG", "BIG", "SMALL"
+    ]
     
-    # লস স্ট্রিক ভিত্তিক
-    if stats.get('loss_streak', 0) >= 2:
-        recs.append("🛡️ 2+ LOSSES — Use Martingale or wait for stronger signal.")
+    return RGB_PATTERN[pattern_index]
+
+# ============================================================
+# 🧠 FUSION ENGINE — GURU + RGB (MATCH/NO MATCH)
+# ============================================================
+def fusion_predict(period_number):
+    # ENGINE 1: GURU
+    guru_pred, guru_num, guru_conf = guru_algorithm(period_number)
     
-    if not recs:
-        recs.append("📊 No clear pattern — bet at your own risk.")
+    # ENGINE 2: RGB
+    rgb_pred = rgb_algorithm(period_number)
+    rgb_conf = 65
     
-    return recs
+    # === MATCH CHECK ===
+    if guru_pred == rgb_pred:
+        matched = True
+        final_pred = guru_pred
+        final_num = guru_num
+        final_conf = int((guru_conf + rgb_conf) / 2)
+        status = "✅ MATCH FOUND"
+        status_icon = "🟢"
+    else:
+        matched = False
+        final_pred = guru_pred  # GURU কে প্রাধান্য
+        final_num = guru_num
+        final_conf = guru_conf
+        status = "❌ NO MATCH"
+        status_icon = "🔴"
+    
+    return {
+        'matched': matched,
+        'prediction': final_pred,
+        'number': final_num,
+        'confidence': final_conf,
+        'guru': guru_pred,
+        'rgb': rgb_pred,
+        'status': status,
+        'status_icon': status_icon
+    }
 
 # ============================================================
 # 📡 API ফেচ
@@ -198,7 +169,7 @@ def fetch_api_data():
     return []
 
 # ============================================================
-# 📊 হাওয়ারলি রিপোর্ট
+# 📊 হাওয়ারলি রিপোর্ট (শুধু MATCH)
 # ============================================================
 async def send_hourly_report():
     global hourly_stats, last_hour_report_time
@@ -209,7 +180,7 @@ async def send_hourly_report():
         losses = hourly_stats['total_losses']
         win_rate = (wins / total * 100) if total > 0 else 0
 
-        report_msg = (
+        msg = (
             f"📊 *HOURLY PERFORMANCE REPORT*\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"🕐 *TIME:* {datetime.now().strftime('%I:%M %p')}\n"
@@ -223,10 +194,11 @@ async def send_hourly_report():
             f"📉 *WORST LOSS STREAK:* `{hourly_stats['max_loss_streak']}x`\n"
             f"🔥 *CURRENT STREAK:* `{hourly_stats['current_streak']}x {hourly_stats['streak_type']}`\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"⚡ GURU SERVER BOT"
+            f"🧠 ENGINES: GURU + RGB\n"
+            f"⚡ GURU+RGB FUSION BOT"
         )
         try:
-            await bot.send_message(chat_id=CHAT_ID, text=report_msg, parse_mode="Markdown")
+            await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
         except:
             pass
 
@@ -245,30 +217,30 @@ async def send_hourly_report():
 # 🚀 মেইন লুপ
 # ============================================================
 async def prediction_bot():
-    global total_wins, total_losses, total_rounds
+    global match_wins, match_losses, match_total
     global current_streak, best_streak
     global history_data, last_predicted_period
-    global last_predicted_signal, last_predicted_num
-    global last_predicted_color, last_predicted_conf
+    global last_predicted_signal, last_predicted_num, last_match_status
     global prediction_sent_for_period, hourly_stats
 
-    print("🔥 GURU SERVER BOT STARTED...")
-    print(f"🤖 BOT: @Tarek3o")
-    print(f"📡 MODE: 1 MIN WINGO")
-    print("🧠 ALGORITHM: Sum of digits % 10")
-    print("📊 ORDER: RESULT → PREDICTION")
+    print("🔥 GURU+RGB FUSION BOT STARTED...")
+    print("🧠 ENGINES: GURU + RGB")
+    print("✅ MATCH = SEND PREDICTION + RESULT")
+    print("❌ NO MATCH = SHOW RESULT ONLY")
+    print("📡 MODE: 1 MIN WINGO")
     print("━━━━━━━━━━━━━━━━━━━━")
 
     try:
         await bot.send_message(
             chat_id=CHAT_ID,
             text=(
-                "🔥 *GURU SERVER BOT* 🔥\n"
+                "🔥 *GURU+RGB FUSION BOT* 🔥\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
-                "🤖 *BOT:* @Tarek3o\n"
-                "🧠 *ALGORITHM:* Digit Sum % 10\n"
+                "🧠 *ENGINE 1:* GURU (Digit Sum)\n"
+                "🧠 *ENGINE 2:* RGB (Pattern Index)\n"
+                "✅ *MATCH* = SEND PREDICTION + RESULT\n"
+                "❌ *NO MATCH* = SHOW RESULT ONLY\n"
                 "📡 *MODE:* 1 MIN WINGO\n"
-                "📊 *ORDER:* RESULT → PREDICTION\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
                 "⏳ WAITING FOR FIRST SIGNAL..."
             ),
@@ -305,128 +277,164 @@ async def prediction_bot():
             print(f"📡 LATEST PERIOD: {latest_issue}, NUMBER: {actual_num}")
 
             # ============================================================
-            # 🔥 RESULT CHECK (প্রথমে রেজাল্ট)
+            # 🔥 RESULT CHECK (MATCH & NO MATCH)
             # ============================================================
-            if last_predicted_period == latest_issue and last_predicted_signal is not None:
-                is_win = (last_predicted_signal == actual_type)
-                is_jackpot = (actual_num == 0 or actual_num == 5)
+            if last_predicted_period == latest_issue:
+                
+                if last_match_status == 'match' and last_predicted_signal is not None:
+                    # ✅ MATCH — WIN/LOSS কাউন্ট হবে
+                    is_win = (last_predicted_signal == actual_type)
+                    is_jackpot = (actual_num == last_predicted_num)
 
-                if is_win:
-                    total_wins += 1
-                    hourly_stats['total_wins'] += 1
-                    current_streak += 1
-                    if current_streak > best_streak:
-                        best_streak = current_streak
-                    status = "✅ WIN"
+                    if is_win:
+                        match_wins += 1
+                        hourly_stats['total_wins'] += 1
+                        current_streak += 1
+                        if current_streak > best_streak:
+                            best_streak = current_streak
+                        status = "✅ WIN"
 
-                    if hourly_stats['streak_type'] == 'WIN':
-                        hourly_stats['current_streak'] += 1
+                        if hourly_stats['streak_type'] == 'WIN':
+                            hourly_stats['current_streak'] += 1
+                        else:
+                            hourly_stats['current_streak'] = 1
+                            hourly_stats['streak_type'] = 'WIN'
+                        if hourly_stats['current_streak'] > hourly_stats['max_win_streak']:
+                            hourly_stats['max_win_streak'] = hourly_stats['current_streak']
+
+                        if is_jackpot:
+                            status = "✅ WIN ⭐ JACKPOT!"
+
                     else:
-                        hourly_stats['current_streak'] = 1
-                        hourly_stats['streak_type'] = 'WIN'
-                    if hourly_stats['current_streak'] > hourly_stats['max_win_streak']:
-                        hourly_stats['max_win_streak'] = hourly_stats['current_streak']
+                        match_losses += 1
+                        hourly_stats['total_losses'] += 1
+                        current_streak = 0
+                        status = "❌ LOSS"
 
-                    if is_jackpot:
-                        status = "✅ WIN ⭐ JACKPOT!"
+                        if hourly_stats['streak_type'] == 'LOSS':
+                            hourly_stats['current_streak'] += 1
+                        else:
+                            hourly_stats['current_streak'] = 1
+                            hourly_stats['streak_type'] = 'LOSS'
+                        if hourly_stats['current_streak'] > hourly_stats['max_loss_streak']:
+                            hourly_stats['max_loss_streak'] = hourly_stats['current_streak']
+
+                    match_total += 1
+                    hourly_stats['total_rounds'] += 1
+
+                    total_games = match_wins + match_losses
+                    win_rate = (match_wins / total_games * 100) if total_games > 0 else 0.0
+
+                    result_msg = (
+                        f"🎯 *RESULT UPDATE (MATCH)*\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🆔 PERIOD: `#{latest_issue[-5:]}`\n"
+                        f"🎯 PREDICTED: `{last_predicted_signal}` → `{last_predicted_num}`\n"
+                        f"🎰 ACTUAL: `{actual_num}` (`{actual_type}`)\n"
+                        f"📌 RESULT: `{status}`\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"📊 WIN RATE: `{win_rate:.1f}%` ({match_wins}W/{match_losses}L)\n"
+                        f"🔥 STREAK: `{current_streak:+d}`\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"⚡ GURU+RGB FUSION BOT"
+                    )
+
+                    try:
+                        await bot.send_message(chat_id=CHAT_ID, text=result_msg, parse_mode="Markdown")
+                        await asyncio.sleep(1)
+                    except:
+                        pass
+
+                    await send_hourly_report()
 
                 else:
-                    total_losses += 1
-                    hourly_stats['total_losses'] += 1
-                    current_streak = 0
-                    status = "❌ LOSS"
+                    # ❌ NO MATCH — শুধু রেজাল্ট দেখাবে (কাউন্ট হবে না)
+                    result_msg = (
+                        f"🎯 *RESULT (NO MATCH)*\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🆔 PERIOD: `#{latest_issue[-5:]}`\n"
+                        f"🎰 ACTUAL: `{actual_num}` (`{actual_type}`)\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"⚡ GURU+RGB FUSION BOT"
+                    )
 
-                    if hourly_stats['streak_type'] == 'LOSS':
-                        hourly_stats['current_streak'] += 1
-                    else:
-                        hourly_stats['current_streak'] = 1
-                        hourly_stats['streak_type'] = 'LOSS'
-                    if hourly_stats['current_streak'] > hourly_stats['max_loss_streak']:
-                        hourly_stats['max_loss_streak'] = hourly_stats['current_streak']
+                    try:
+                        await bot.send_message(chat_id=CHAT_ID, text=result_msg, parse_mode="Markdown")
+                        await asyncio.sleep(1)
+                    except:
+                        pass
 
-                total_rounds += 1
-                hourly_stats['total_rounds'] += 1
-
-                total_games = total_wins + total_losses
-                win_rate = (total_wins / total_games * 100) if total_games > 0 else 0.0
-
-                result_msg = (
-                    f"🎯 *RESULT UPDATE*\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"🆔 PERIOD: `#{latest_issue[-5:]}`\n"
-                    f"🎯 PREDICTED: `{last_predicted_signal}` → `{last_predicted_num}` ({last_predicted_color})\n"
-                    f"🎰 ACTUAL: `{actual_num}` (`{actual_type}`)\n"
-                    f"📌 RESULT: `{status}`\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"📊 WIN RATE: `{win_rate:.1f}%` ({total_wins}W/{total_losses}L)\n"
-                    f"🔥 STREAK: `{current_streak:+d}`\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"⚡ GURU SERVER BOT"
-                )
-
-                try:
-                    await bot.send_message(chat_id=CHAT_ID, text=result_msg, parse_mode="Markdown")
-                    await asyncio.sleep(1)
-                except:
-                    pass
-
-                await send_hourly_report()
-
+                # রিসেট
                 last_predicted_period = None
                 last_predicted_signal = None
                 last_predicted_num = None
-                last_predicted_color = None
-                last_predicted_conf = 0
+                last_match_status = None
 
             # ============================================================
-            # 🔥 NEW PREDICTION (রেজাল্টের পর)
+            # 🔥 NEW PREDICTION
             # ============================================================
             next_period = str(int(latest_issue) + 1)
             print(f"🎯 NEXT PERIOD: {next_period}")
 
             if not prediction_sent_for_period.get(next_period, False):
-                pred = guru_algorithm(next_period)
+                pred = fusion_predict(next_period)
                 
-                # রেকমেন্ডেশন জেনারেট
-                stats_context = {
-                    'current_streak': current_streak,
-                    'streak_type': 'WIN' if current_streak >= 0 else 'LOSS',
-                    'loss_streak': abs(current_streak) if current_streak < 0 else 0,
-                    'win_streak': current_streak if current_streak > 0 else 0
-                }
-                recommendations = generate_recommendation(pred, stats_context)
-                rec_text = "\n".join([f"• {r}" for r in recommendations[:3]])
+                last_match_status = 'match' if pred['matched'] else 'no_match'
+                
+                if pred['matched']:
+                    # ✅ MATCH FOUND — প্রেডিকশন পাঠাবে
+                    prediction_msg = (
+                        f"🔥 *GURU+RGB FUSION PREDICTION* 🔥\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🆔 PERIOD: `#{next_period[-5:]}`\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"✅ *MATCH FOUND!*\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🎯 *PREDICTION:* `{pred['prediction']}`\n"
+                        f"🔢 *NUMBER:* `{pred['number']}`\n"
+                        f"⚡ *CONFIDENCE:* `{pred['confidence']}%`\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🧠 GURU: `{pred['guru']}` | RGB: `{pred['rgb']}`\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"⏳ *RESULT AWAITING...*\n"
+                        f"⚡ GURU+RGB FUSION BOT"
+                    )
 
-                prediction_msg = (
-                    f"🔥 *GURU SERVER PREDICTION* 🔥\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"🆔 PERIOD: `#{next_period[-5:]}`\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"🎯 *PREDICTION:* `{pred['prediction']}`\n"
-                    f"🔢 *NUMBER:* `{pred['number']}`\n"
-                    f"🎨 *COLOR:* `{pred['emoji']} {pred['color']}`\n"
-                    f"⚡ *CONFIDENCE:* `{pred['confidence']}%`\n"
-                    f"📊 *DIGIT SUM:* `{pred['digit_sum']}` → `{pred['remainder']}`\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"💡 *RECOMMENDATION:*\n"
-                    f"{rec_text}\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"⏳ *RESULT AWAITING...*\n"
-                    f"⚡ GURU SERVER BOT"
-                )
+                    last_predicted_period = next_period
+                    last_predicted_signal = pred['prediction']
+                    last_predicted_num = pred['number']
+                    prediction_sent_for_period[next_period] = True
 
-                last_predicted_period = next_period
-                last_predicted_signal = pred['prediction']
-                last_predicted_num = pred['number']
-                last_predicted_color = pred['color']
-                last_predicted_conf = pred['confidence']
-                prediction_sent_for_period[next_period] = True
+                    try:
+                        await bot.send_message(chat_id=CHAT_ID, text=prediction_msg, parse_mode="Markdown")
+                        print(f"✅ MATCH: {next_period} → {pred['prediction']}")
+                    except Exception as e:
+                        print(f"❌ SEND FAILED: {e}")
+                        
+                else:
+                    # ❌ NO MATCH — প্রেডিকশন পাঠাবে না, শুধু জানাবে
+                    no_match_msg = (
+                        f"❌ *NO MATCH*\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🆔 PERIOD: `#{next_period[-5:]}`\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🧠 GURU: `{pred['guru']}` | RGB: `{pred['rgb']}`\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"❌ NO MATCH FOUND\n"
+                        f"⏳ RESULT WILL BE SHOWN...\n"
+                        f"⚡ GURU+RGB FUSION BOT"
+                    )
 
-                try:
-                    await bot.send_message(chat_id=CHAT_ID, text=prediction_msg, parse_mode="Markdown")
-                    print(f"✅ PREDICTION: {next_period} → {pred['prediction']} ({pred['number']})")
-                except Exception as e:
-                    print(f"❌ SEND FAILED: {e}")
+                    last_predicted_period = next_period
+                    last_predicted_signal = None
+                    last_predicted_num = None
+                    prediction_sent_for_period[next_period] = True
+
+                    try:
+                        await bot.send_message(chat_id=CHAT_ID, text=no_match_msg, parse_mode="Markdown")
+                        print(f"❌ NO MATCH: {next_period}")
+                    except Exception as e:
+                        print(f"❌ SEND FAILED: {e}")
 
                 if len(prediction_sent_for_period) > 5:
                     oldest = min(prediction_sent_for_period.keys())
@@ -438,12 +446,11 @@ async def prediction_bot():
 
 # ==================== স্টার্ট ====================
 if __name__ == '__main__':
-    print("🔥 GURU SERVER BOT")
+    print("🔥 GURU+RGB FUSION BOT")
     print("━━━━━━━━━━━━━━━━━━━━")
-    print("🤖 BOT: @Tarek3o")
-    print(f"📡 CHAT ID: {CHAT_ID}")
-    print("🧠 ALGORITHM: Digit Sum % 10")
+    print("🧠 ENGINES: GURU + RGB")
+    print("✅ MATCH = SEND PREDICTION + RESULT")
+    print("❌ NO MATCH = SHOW RESULT ONLY")
     print("📡 MODE: 1 MIN WINGO")
-    print("📊 ORDER: RESULT → PREDICTION")
     print("━━━━━━━━━━━━━━━━━━━━")
     asyncio.run(prediction_bot())
