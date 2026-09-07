@@ -4,9 +4,9 @@
 """
 🔥 GURU + RGB FUSION BOT — Wingo 1M Predictor
 🧠 ENGINE 1: GURU (Digit Sum % 10)
-🧠 ENGINE 2: RGB (Pattern Index Based)
+🧠 ENGINE 2: RGB (1-Minute Period Pattern)
 ✅ MATCH = PREDICTION পাঠাবে
-❌ NO MATCH = শুধু রেজাল্ট দেখাবে (কাউন্ট হবে না)
+❌ NO MATCH = শুধু রেজাল্ট দেখাবে
 📡 ORDER: RESULT → PREDICTION
 📊 HOURLY REPORT
 🤖 Bot: @Tarek3o
@@ -60,7 +60,6 @@ threading.Thread(target=keep_alive, daemon=True).start()
 bot = Bot(token=BOT_TOKEN)
 
 # ==================== গ্লোবাল ভেরিয়েবল ====================
-# শুধু MATCH এর স্ট্যাটস
 match_wins = 0
 match_losses = 0
 match_total = 0
@@ -74,48 +73,72 @@ last_predicted_num = None
 last_match_status = None
 prediction_sent_for_period = {}
 
-# ==================== হাওয়ারলি স্ট্যাটস (শুধু MATCH) ====================
+# ==================== হাওয়ারলি স্ট্যাটস ====================
 hourly_stats = {
-    'total_rounds': 0,
-    'total_wins': 0,
-    'total_losses': 0,
-    'max_win_streak': 0,
-    'max_loss_streak': 0,
-    'current_streak': 0,
-    'streak_type': 'WIN'
+    'total_rounds': 0, 'total_wins': 0, 'total_losses': 0,
+    'max_win_streak': 0, 'max_loss_streak': 0,
+    'current_streak': 0, 'streak_type': 'WIN'
 }
 last_hour_report_time = time.time()
 
 # ============================================================
-# 🧠 ENGINE 1: GURU ALGORITHM
+# 🧠 ENGINE 1: GURU ALGORITHM (Digit Sum % 10)
 # ============================================================
 def guru_algorithm(period_number):
     str_period = str(period_number)
     digit_sum = sum(int(c) for c in str_period if c.isdigit())
     remainder = digit_sum % 10
     pred = "BIG" if remainder >= 5 else "SMALL"
-    conf = 70 if pred == "BIG" else 60
+    
+    # কনফিডেন্স: remainder যত বেশি/কম তত বেশি
+    if pred == "BIG":
+        conf = 70 + (remainder - 5) * 3
+    else:
+        conf = 70 + (4 - remainder) * 3
+    conf = min(95, max(55, conf))
+    
     return pred, remainder, conf
 
 # ============================================================
-# 🧠 ENGINE 2: RGB ALGORITHM
+# 🧠 ENGINE 2: RGB ALGORITHM (1-Minute Period Based)
 # ============================================================
 def rgb_algorithm(period_number):
+    """
+    RGB প্যাটার্ন — ১ মিনিটের পিরিয়ডের জন্য
+    পিরিয়ডের শেষ ৫ ডিজিট থেকে ইনডেক্স বের করে
+    """
     str_period = str(period_number)
+    
+    # শেষ ৫ ডিজিট নিন
     if len(str_period) >= 5:
         last5 = int(str_period[-5:])
     else:
         last5 = int(str_period)
     
+    # ১২টি প্যাটার্নের মধ্যে ইনডেক্স বের করুন
+    # (last5 + 5) % 12 -> প্রতি ১২ পিরিয়ডে রিপিট
     pattern_index = (last5 + 5) % 12
     
+    # RGB প্যাটার্ন (১২টি)
     RGB_PATTERN = [
-        "BIG", "SMALL", "SMALL", "BIG",
-        "BIG", "SMALL", "BIG", "SMALL",
-        "SMALL", "BIG", "BIG", "SMALL"
+        "BIG",    # 0
+        "SMALL",  # 1
+        "SMALL",  # 2
+        "BIG",    # 3
+        "BIG",    # 4
+        "SMALL",  # 5
+        "BIG",    # 6
+        "SMALL",  # 7
+        "SMALL",  # 8
+        "BIG",    # 9
+        "BIG",    # 10
+        "SMALL"   # 11
     ]
     
-    return RGB_PATTERN[pattern_index]
+    pred = RGB_PATTERN[pattern_index]
+    conf = 65  # RGB এর কনফিডেন্স ফিক্সড
+    
+    return pred, conf, pattern_index
 
 # ============================================================
 # 🧠 FUSION ENGINE — GURU + RGB (MATCH/NO MATCH)
@@ -125,8 +148,7 @@ def fusion_predict(period_number):
     guru_pred, guru_num, guru_conf = guru_algorithm(period_number)
     
     # ENGINE 2: RGB
-    rgb_pred = rgb_algorithm(period_number)
-    rgb_conf = 65
+    rgb_pred, rgb_conf, rgb_idx = rgb_algorithm(period_number)
     
     # === MATCH CHECK ===
     if guru_pred == rgb_pred:
@@ -136,6 +158,7 @@ def fusion_predict(period_number):
         final_conf = int((guru_conf + rgb_conf) / 2)
         status = "✅ MATCH FOUND"
         status_icon = "🟢"
+        match_type = "FULL MATCH"
     else:
         matched = False
         final_pred = guru_pred  # GURU কে প্রাধান্য
@@ -143,6 +166,7 @@ def fusion_predict(period_number):
         final_conf = guru_conf
         status = "❌ NO MATCH"
         status_icon = "🔴"
+        match_type = "DISAGREE"
     
     return {
         'matched': matched,
@@ -150,9 +174,14 @@ def fusion_predict(period_number):
         'number': final_num,
         'confidence': final_conf,
         'guru': guru_pred,
+        'guru_conf': guru_conf,
+        'guru_num': guru_num,
         'rgb': rgb_pred,
+        'rgb_conf': rgb_conf,
+        'rgb_idx': rgb_idx,
         'status': status,
-        'status_icon': status_icon
+        'status_icon': status_icon,
+        'match_type': match_type
     }
 
 # ============================================================
@@ -169,7 +198,7 @@ def fetch_api_data():
     return []
 
 # ============================================================
-# 📊 হাওয়ারলি রিপোর্ট (শুধু MATCH)
+# 📊 হাওয়ারলি রিপোর্ট
 # ============================================================
 async def send_hourly_report():
     global hourly_stats, last_hour_report_time
@@ -194,7 +223,7 @@ async def send_hourly_report():
             f"📉 *WORST LOSS STREAK:* `{hourly_stats['max_loss_streak']}x`\n"
             f"🔥 *CURRENT STREAK:* `{hourly_stats['current_streak']}x {hourly_stats['streak_type']}`\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"🧠 ENGINES: GURU + RGB\n"
+            f"🧠 ENGINES: GURU + RGB (1M)\n"
             f"⚡ GURU+RGB FUSION BOT"
         )
         try:
@@ -203,13 +232,9 @@ async def send_hourly_report():
             pass
 
         hourly_stats = {
-            'total_rounds': 0,
-            'total_wins': 0,
-            'total_losses': 0,
-            'max_win_streak': 0,
-            'max_loss_streak': 0,
-            'current_streak': 0,
-            'streak_type': 'WIN'
+            'total_rounds': 0, 'total_wins': 0, 'total_losses': 0,
+            'max_win_streak': 0, 'max_loss_streak': 0,
+            'current_streak': 0, 'streak_type': 'WIN'
         }
         last_hour_report_time = time.time()
 
@@ -224,7 +249,7 @@ async def prediction_bot():
     global prediction_sent_for_period, hourly_stats
 
     print("🔥 GURU+RGB FUSION BOT STARTED...")
-    print("🧠 ENGINES: GURU + RGB")
+    print("🧠 ENGINES: GURU + RGB (1-Minute)")
     print("✅ MATCH = SEND PREDICTION + RESULT")
     print("❌ NO MATCH = SHOW RESULT ONLY")
     print("📡 MODE: 1 MIN WINGO")
@@ -237,7 +262,7 @@ async def prediction_bot():
                 "🔥 *GURU+RGB FUSION BOT* 🔥\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
                 "🧠 *ENGINE 1:* GURU (Digit Sum)\n"
-                "🧠 *ENGINE 2:* RGB (Pattern Index)\n"
+                "🧠 *ENGINE 2:* RGB (1M Pattern)\n"
                 "✅ *MATCH* = SEND PREDICTION + RESULT\n"
                 "❌ *NO MATCH* = SHOW RESULT ONLY\n"
                 "📡 *MODE:* 1 MIN WINGO\n"
@@ -277,7 +302,7 @@ async def prediction_bot():
             print(f"📡 LATEST PERIOD: {latest_issue}, NUMBER: {actual_num}")
 
             # ============================================================
-            # 🔥 RESULT CHECK (MATCH & NO MATCH)
+            # 🔥 RESULT CHECK
             # ============================================================
             if last_predicted_period == latest_issue:
                 
@@ -348,7 +373,7 @@ async def prediction_bot():
                     await send_hourly_report()
 
                 else:
-                    # ❌ NO MATCH — শুধু রেজাল্ট দেখাবে (কাউন্ট হবে না)
+                    # ❌ NO MATCH — শুধু রেজাল্ট দেখাবে
                     result_msg = (
                         f"🎯 *RESULT (NO MATCH)*\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -364,7 +389,6 @@ async def prediction_bot():
                     except:
                         pass
 
-                # রিসেট
                 last_predicted_period = None
                 last_predicted_signal = None
                 last_predicted_num = None
@@ -382,7 +406,7 @@ async def prediction_bot():
                 last_match_status = 'match' if pred['matched'] else 'no_match'
                 
                 if pred['matched']:
-                    # ✅ MATCH FOUND — প্রেডিকশন পাঠাবে
+                    # ✅ MATCH FOUND
                     prediction_msg = (
                         f"🔥 *GURU+RGB FUSION PREDICTION* 🔥\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -394,7 +418,8 @@ async def prediction_bot():
                         f"🔢 *NUMBER:* `{pred['number']}`\n"
                         f"⚡ *CONFIDENCE:* `{pred['confidence']}%`\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🧠 GURU: `{pred['guru']}` | RGB: `{pred['rgb']}`\n"
+                        f"🧠 GURU: `{pred['guru']}` ({pred['guru_conf']}%)\n"
+                        f"🧠 RGB: `{pred['rgb']}` ({pred['rgb_conf']}%) [Idx:{pred['rgb_idx']}]\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"⏳ *RESULT AWAITING...*\n"
                         f"⚡ GURU+RGB FUSION BOT"
@@ -412,13 +437,14 @@ async def prediction_bot():
                         print(f"❌ SEND FAILED: {e}")
                         
                 else:
-                    # ❌ NO MATCH — প্রেডিকশন পাঠাবে না, শুধু জানাবে
+                    # ❌ NO MATCH
                     no_match_msg = (
                         f"❌ *NO MATCH*\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"🆔 PERIOD: `#{next_period[-5:]}`\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🧠 GURU: `{pred['guru']}` | RGB: `{pred['rgb']}`\n"
+                        f"🧠 GURU: `{pred['guru']}` ({pred['guru_conf']}%)\n"
+                        f"🧠 RGB: `{pred['rgb']}` ({pred['rgb_conf']}%) [Idx:{pred['rgb_idx']}]\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"❌ NO MATCH FOUND\n"
                         f"⏳ RESULT WILL BE SHOWN...\n"
@@ -448,7 +474,7 @@ async def prediction_bot():
 if __name__ == '__main__':
     print("🔥 GURU+RGB FUSION BOT")
     print("━━━━━━━━━━━━━━━━━━━━")
-    print("🧠 ENGINES: GURU + RGB")
+    print("🧠 ENGINES: GURU + RGB (1M)")
     print("✅ MATCH = SEND PREDICTION + RESULT")
     print("❌ NO MATCH = SHOW RESULT ONLY")
     print("📡 MODE: 1 MIN WINGO")
