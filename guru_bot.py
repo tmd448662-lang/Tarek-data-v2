@@ -89,7 +89,7 @@ hourly_stats = {
     'streak_type': 'WIN'
 }
 last_hour_report_time = time.time()
-hourly_report_sent = False  # প্রতি ঘন্টায় ১ বার রিপোর্ট পাঠানোর জন্য
+hourly_report_sent = False
 
 # ============================================================
 # 🧠 GURU ALGORITHM
@@ -109,39 +109,44 @@ def guru_algorithm(period_number):
     return pred, remainder, conf
 
 # ============================================================
-# 🧠 RGB ALGORITHM - EXACTLY MATCHING HTML
+# 🧠 RGB ALGORITHM - EXACTLY MATCHING HTML (ANSH BOSS)
 # ============================================================
 def rgb_algorithm(period_number):
     """
-    RGB ALGORITHM - EXACTLY LIKE HTML
-    HTML এ যেভাবে আছে ঠিক সেভাবেই
+    RGB ALGORITHM - PERFECT MATCH WITH HTML
+    HTML এর getVIPPeriod() এবং getVIPPrediction() এর সাথে ১০০% মিল
     """
     str_period = str(period_number)
     
-    # শেষ ৫ ডিজিট নেওয়া
-    if len(str_period) >= 5:
-        last5 = int(str_period[-5:])
-    else:
-        last5 = int(str_period)
+    # HTML এর মতো পিরিয়ড পজিশন বের করা
+    # HTML: const idx = Math.floor(diff / interval) + 1;
+    # এখানে diff = total seconds from day start
+    now = datetime.now()
+    start_of_day = datetime(now.year, now.month, now.day, 0, 0, 0)
+    diff = int((now - start_of_day).total_seconds())
+    interval = 60  # 1 minute
+    idx = diff // interval + 1
     
-    # RGB প্যাটার্ন ইনডেক্স
-    pattern_index = last5 % 12
-    
-    # HTML থেকে সরাসরি PATTERN (পুরোপুরি মিল)
+    # HTML PATTERN (একদম সেম)
     RGB_PATTERN = [
-        {"s": "BIG", "n": 7},    # 0
-        {"s": "SMALL", "n": 2},  # 1
-        {"s": "SMALL", "n": 4},  # 2
-        {"s": "BIG", "n": 9},    # 3
-        {"s": "BIG", "n": 6},    # 4
-        {"s": "SMALL", "n": 0},  # 5
-        {"s": "BIG", "n": 8},    # 6
-        {"s": "SMALL", "n": 3},  # 7
-        {"s": "SMALL", "n": 1},  # 8
-        {"s": "BIG", "n": 5},    # 9
-        {"s": "BIG", "n": 7},    # 10
-        {"s": "SMALL", "n": 4}   # 11
+        {"s": "BIG", "n": 7},
+        {"s": "SMALL", "n": 2},
+        {"s": "SMALL", "n": 4},
+        {"s": "BIG", "n": 9},
+        {"s": "BIG", "n": 6},
+        {"s": "SMALL", "n": 0},
+        {"s": "BIG", "n": 8},
+        {"s": "SMALL", "n": 3},
+        {"s": "SMALL", "n": 1},
+        {"s": "BIG", "n": 5},
+        {"s": "BIG", "n": 7},
+        {"s": "SMALL", "n": 4}
     ]
+    
+    # HTML: const offset = mode === '30s' ? 0 : 5;
+    # 1M এর জন্য offset = 5
+    offset = 5
+    pattern_index = (idx + offset) % 12
     
     pred = RGB_PATTERN[pattern_index]
     
@@ -149,7 +154,7 @@ def rgb_algorithm(period_number):
         "prediction": pred["s"],
         "confidence": 85,
         "number": pred["n"],
-        "pattern_index": pattern_index  # শুধু ডিবাগের জন্য
+        "pattern_index": pattern_index
     }
 
 # ============================================================
@@ -197,21 +202,19 @@ def fetch_api_data():
     return []
 
 # ============================================================
-# 📊 হাওয়ারলি রিপোর্ট (প্রতি ঘন্টায় ১ বার)
+# 📊 হাওয়ারলি রিপোর্ট
 # ============================================================
 async def send_hourly_report():
     global hourly_stats, last_hour_report_time, hourly_report_sent
     
     current_time = time.time()
     
-    # প্রতি ঘন্টায় ১ বার রিপোর্ট পাঠাবে
     if current_time - last_hour_report_time >= 3600 and not hourly_report_sent:
         total = hourly_stats['total_rounds']
         wins = hourly_stats['total_wins']
         losses = hourly_stats['total_losses']
         win_rate = (wins / total * 100) if total > 0 else 0
         
-        # সময়
         current_hour = datetime.now().strftime('%I:%M %p')
         
         msg = (
@@ -237,7 +240,6 @@ async def send_hourly_report():
             hourly_report_sent = True
             last_hour_report_time = current_time
             
-            # স্ট্যাট রিসেট
             hourly_stats = {
                 'total_rounds': 0,
                 'total_wins': 0,
@@ -286,7 +288,6 @@ async def prediction_bot():
 
     while True:
         try:
-            # 1 মিনিট অপেক্ষা
             current_sec = int(time.time()) % 60
             await asyncio.sleep(60 - current_sec + 2)
 
@@ -311,7 +312,7 @@ async def prediction_bot():
             print(f"📡 Period: {latest_issue} | Result: {actual_num} ({actual_type})")
 
             # ============================================================
-            # RESULT CHECK - শুধু ১ বার
+            # RESULT CHECK
             # ============================================================
             if last_predicted_period == latest_issue and not result_sent_for_period.get(latest_issue, False):
                 if last_match_status == 'match' and last_predicted_signal is not None:
@@ -375,11 +376,9 @@ async def prediction_bot():
                     except Exception as e:
                         print(f"❌ Failed to send result: {e}")
 
-                    # Hourly Report চেক
                     await send_hourly_report()
 
                 else:
-                    # NO MATCH
                     result_msg = (
                         f"🎯 *RESULT*\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -397,14 +396,13 @@ async def prediction_bot():
                     except Exception as e:
                         print(f"❌ Failed to send result: {e}")
 
-                # ক্লিনআপ
                 last_predicted_period = None
                 last_predicted_signal = None
                 last_predicted_num = None
                 last_match_status = None
 
             # ============================================================
-            # NEW PREDICTION - শুধু ১ বার
+            # NEW PREDICTION
             # ============================================================
             next_period = str(int(latest_issue) + 1)
 
@@ -412,8 +410,11 @@ async def prediction_bot():
                 pred = fusion_predict(next_period)
                 last_match_status = 'match' if pred['matched'] else 'no_match'
 
-                # ডিবাগ প্রিন্ট
-                print(f"🔮 Next: {next_period} | GURU: {pred['guru']} | RGB: {pred['rgb']} | MATCH: {pred['matched']}")
+                # ডিবাগ - দেখুন ঠিক মিলছে কিনা
+                print(f"🔮 Next: {next_period}")
+                print(f"   GURU: {pred['guru']} ({pred['guru_conf']}%)")
+                print(f"   RGB: {pred['rgb']} ({pred['rgb_conf']}%)")
+                print(f"   MATCH: {pred['matched']}")
 
                 if pred['matched']:
                     pred_msg = (
@@ -470,7 +471,6 @@ async def prediction_bot():
                     except Exception as e:
                         print(f"❌ Failed to send prediction: {e}")
 
-                # পুরানো ডাটা ক্লিনআপ
                 if len(prediction_sent_for_period) > 5:
                     oldest = min(prediction_sent_for_period.keys())
                     del prediction_sent_for_period[oldest]
