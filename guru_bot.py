@@ -102,10 +102,10 @@ def guru_algorithm(period_number):
     return pred, remainder, conf
 
 # ============================================================
-# 🧠 RGB ALGORITHM (FIXED)
+# 🧠 RGB ALGORITHM (FIXED - HTML PATTERN FOLLOW)
 # ============================================================
 def rgb_algorithm(period_number):
-    """RGB 12-STEP PATTERN - FIXED"""
+    """RGB 12-STEP PATTERN - Exactly as HTML"""
     str_period = str(period_number)
     
     # শেষ ৫ ডিজিট নেওয়া
@@ -117,19 +117,20 @@ def rgb_algorithm(period_number):
     # RGB প্যাটার্ন ইনডেক্স
     pattern_index = last5 % 12
     
+    # HTML থেকে সরাসরি PATTERN
     RGB_PATTERN = [
-        {"s": "BIG", "n": 7},    # 0
-        {"s": "SMALL", "n": 2},  # 1
-        {"s": "SMALL", "n": 4},  # 2
-        {"s": "BIG", "n": 9},    # 3
-        {"s": "BIG", "n": 6},    # 4
-        {"s": "SMALL", "n": 0},  # 5
-        {"s": "BIG", "n": 8},    # 6
-        {"s": "SMALL", "n": 3},  # 7
-        {"s": "SMALL", "n": 1},  # 8
-        {"s": "BIG", "n": 5},    # 9
-        {"s": "BIG", "n": 7},    # 10
-        {"s": "SMALL", "n": 4}   # 11
+        {"s": "BIG", "n": 7},
+        {"s": "SMALL", "n": 2},
+        {"s": "SMALL", "n": 4},
+        {"s": "BIG", "n": 9},
+        {"s": "BIG", "n": 6},
+        {"s": "SMALL", "n": 0},
+        {"s": "BIG", "n": 8},
+        {"s": "SMALL", "n": 3},
+        {"s": "SMALL", "n": 1},
+        {"s": "BIG", "n": 5},
+        {"s": "BIG", "n": 7},
+        {"s": "SMALL", "n": 4}
     ]
     
     pred = RGB_PATTERN[pattern_index]
@@ -138,7 +139,7 @@ def rgb_algorithm(period_number):
         "prediction": pred["s"],
         "confidence": 85,
         "number": pred["n"],
-        "pattern_index": pattern_index
+        "pattern_index": pattern_index  # শুধু অভ্যন্তরীণ ব্যবহারের জন্য
     }
 
 # ============================================================
@@ -149,7 +150,6 @@ def fusion_predict(period_number):
     rgb = rgb_algorithm(period_number)
     rgb_pred = rgb['prediction']
     rgb_conf = rgb['confidence']
-    rgb_idx = rgb['pattern_index']
     
     if guru_pred == rgb_pred:
         matched = True
@@ -170,8 +170,7 @@ def fusion_predict(period_number):
         'guru': guru_pred,
         'guru_conf': guru_conf,
         'rgb': rgb_pred,
-        'rgb_conf': rgb_conf,
-        'rgb_idx': rgb_idx
+        'rgb_conf': rgb_conf
     }
 
 # ============================================================
@@ -384,7 +383,7 @@ async def prediction_bot():
                         f"⚡ CONF: `{pred['confidence']}%`\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"🧠 GURU: `{pred['guru']}` ({pred['guru_conf']}%)\n"
-                        f"🧠 RGB: `{pred['rgb']}` ({pred['rgb_conf']}%) [Idx:{pred['rgb_idx']}]\n"
+                        f"🧠 RGB: `{pred['rgb']}` ({pred['rgb_conf']}%)\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"⏳ RESULT AWAITING...\n"
                         f"💎 GURU+RGB FUSION BOT"
@@ -408,7 +407,7 @@ async def prediction_bot():
                         f"🆔 #{next_period[-5:]}\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"🧠 GURU: `{pred['guru']}` ({pred['guru_conf']}%)\n"
-                        f"🧠 RGB: `{pred['rgb']}` ({pred['rgb_conf']}%) [Idx:{pred['rgb_idx']}]\n"
+                        f"🧠 RGB: `{pred['rgb']}` ({pred['rgb_conf']}%)\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"❌ NO MATCH FOUND\n"
                         f"⏳ RESULT WILL BE SHOWN...\n"
