@@ -76,13 +76,20 @@ last_predicted_signal = None
 last_predicted_num = None
 last_match_status = None
 prediction_sent_for_period = {}
+result_sent_for_period = {}
 
+# Hourly Stats
 hourly_stats = {
-    'total_rounds': 0, 'total_wins': 0, 'total_losses': 0,
-    'max_win_streak': 0, 'max_loss_streak': 0,
-    'current_streak': 0, 'streak_type': 'WIN'
+    'total_rounds': 0,
+    'total_wins': 0,
+    'total_losses': 0,
+    'max_win_streak': 0,
+    'max_loss_streak': 0,
+    'current_streak': 0,
+    'streak_type': 'WIN'
 }
 last_hour_report_time = time.time()
+hourly_report_sent = False  # প্রতি ঘন্টায় ১ বার রিপোর্ট পাঠানোর জন্য
 
 # ============================================================
 # 🧠 GURU ALGORITHM
@@ -102,10 +109,13 @@ def guru_algorithm(period_number):
     return pred, remainder, conf
 
 # ============================================================
-# 🧠 RGB ALGORITHM (FIXED - HTML PATTERN FOLLOW)
+# 🧠 RGB ALGORITHM - EXACTLY MATCHING HTML
 # ============================================================
 def rgb_algorithm(period_number):
-    """RGB 12-STEP PATTERN - Exactly as HTML"""
+    """
+    RGB ALGORITHM - EXACTLY LIKE HTML
+    HTML এ যেভাবে আছে ঠিক সেভাবেই
+    """
     str_period = str(period_number)
     
     # শেষ ৫ ডিজিট নেওয়া
@@ -117,20 +127,20 @@ def rgb_algorithm(period_number):
     # RGB প্যাটার্ন ইনডেক্স
     pattern_index = last5 % 12
     
-    # HTML থেকে সরাসরি PATTERN
+    # HTML থেকে সরাসরি PATTERN (পুরোপুরি মিল)
     RGB_PATTERN = [
-        {"s": "BIG", "n": 7},
-        {"s": "SMALL", "n": 2},
-        {"s": "SMALL", "n": 4},
-        {"s": "BIG", "n": 9},
-        {"s": "BIG", "n": 6},
-        {"s": "SMALL", "n": 0},
-        {"s": "BIG", "n": 8},
-        {"s": "SMALL", "n": 3},
-        {"s": "SMALL", "n": 1},
-        {"s": "BIG", "n": 5},
-        {"s": "BIG", "n": 7},
-        {"s": "SMALL", "n": 4}
+        {"s": "BIG", "n": 7},    # 0
+        {"s": "SMALL", "n": 2},  # 1
+        {"s": "SMALL", "n": 4},  # 2
+        {"s": "BIG", "n": 9},    # 3
+        {"s": "BIG", "n": 6},    # 4
+        {"s": "SMALL", "n": 0},  # 5
+        {"s": "BIG", "n": 8},    # 6
+        {"s": "SMALL", "n": 3},  # 7
+        {"s": "SMALL", "n": 1},  # 8
+        {"s": "BIG", "n": 5},    # 9
+        {"s": "BIG", "n": 7},    # 10
+        {"s": "SMALL", "n": 4}   # 11
     ]
     
     pred = RGB_PATTERN[pattern_index]
@@ -139,7 +149,7 @@ def rgb_algorithm(period_number):
         "prediction": pred["s"],
         "confidence": 85,
         "number": pred["n"],
-        "pattern_index": pattern_index  # শুধু অভ্যন্তরীণ ব্যবহারের জন্য
+        "pattern_index": pattern_index  # শুধু ডিবাগের জন্য
     }
 
 # ============================================================
@@ -187,21 +197,27 @@ def fetch_api_data():
     return []
 
 # ============================================================
-# 📊 হাওয়ারলি রিপোর্ট
+# 📊 হাওয়ারলি রিপোর্ট (প্রতি ঘন্টায় ১ বার)
 # ============================================================
 async def send_hourly_report():
-    global hourly_stats, last_hour_report_time
-
-    if time.time() - last_hour_report_time >= 3600:
+    global hourly_stats, last_hour_report_time, hourly_report_sent
+    
+    current_time = time.time()
+    
+    # প্রতি ঘন্টায় ১ বার রিপোর্ট পাঠাবে
+    if current_time - last_hour_report_time >= 3600 and not hourly_report_sent:
         total = hourly_stats['total_rounds']
         wins = hourly_stats['total_wins']
         losses = hourly_stats['total_losses']
         win_rate = (wins / total * 100) if total > 0 else 0
-
+        
+        # সময়
+        current_hour = datetime.now().strftime('%I:%M %p')
+        
         msg = (
             f"📊 *HOURLY PERFORMANCE REPORT*\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"🕐 *TIME:* {datetime.now().strftime('%I:%M %p')}\n"
+            f"🕐 *TIME:* {current_hour}\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"🔄 *TOTAL ROUNDS:* `{total}`\n"
             f"✅ *TOTAL WINS:* `{wins}`\n"
@@ -214,17 +230,25 @@ async def send_hourly_report():
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"💎 GURU+RGB FUSION BOT"
         )
+        
         try:
             await bot.send_message(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
-        except:
-            pass
-
-        hourly_stats = {
-            'total_rounds': 0, 'total_wins': 0, 'total_losses': 0,
-            'max_win_streak': 0, 'max_loss_streak': 0,
-            'current_streak': 0, 'streak_type': 'WIN'
-        }
-        last_hour_report_time = time.time()
+            print(f"✅ Hourly Report Sent at {current_hour}")
+            hourly_report_sent = True
+            last_hour_report_time = current_time
+            
+            # স্ট্যাট রিসেট
+            hourly_stats = {
+                'total_rounds': 0,
+                'total_wins': 0,
+                'total_losses': 0,
+                'max_win_streak': 0,
+                'max_loss_streak': 0,
+                'current_streak': 0,
+                'streak_type': 'WIN'
+            }
+        except Exception as e:
+            print(f"❌ Failed to send hourly report: {e}")
 
 # ============================================================
 # 🚀 মেইন লুপ
@@ -234,9 +258,13 @@ async def prediction_bot():
     global current_streak, best_streak
     global history_data, last_predicted_period
     global last_predicted_signal, last_predicted_num, last_match_status
-    global prediction_sent_for_period
+    global prediction_sent_for_period, result_sent_for_period
+    global hourly_report_sent
 
     print("🔥 GURU+RGB FUSION BOT STARTED...")
+    print("━━━━━━━━━━━━━━━━━━━━")
+    print("🧠 ENGINES: GURU + RGB (1M)")
+    print("📡 MODE: 1 MINUTE")
     print("━━━━━━━━━━━━━━━━━━━━")
 
     try:
@@ -258,6 +286,7 @@ async def prediction_bot():
 
     while True:
         try:
+            # 1 মিনিট অপেক্ষা
             current_sec = int(time.time()) % 60
             await asyncio.sleep(60 - current_sec + 2)
 
@@ -279,8 +308,12 @@ async def prediction_bot():
             actual_num = latest['number']
             actual_type = "BIG" if actual_num >= 5 else "SMALL"
 
-            # RESULT CHECK
-            if last_predicted_period == latest_issue:
+            print(f"📡 Period: {latest_issue} | Result: {actual_num} ({actual_type})")
+
+            # ============================================================
+            # RESULT CHECK - শুধু ১ বার
+            # ============================================================
+            if last_predicted_period == latest_issue and not result_sent_for_period.get(latest_issue, False):
                 if last_match_status == 'match' and last_predicted_signal is not None:
                     is_win = (last_predicted_signal == actual_type)
                     is_jackpot = (actual_num == last_predicted_num)
@@ -321,7 +354,7 @@ async def prediction_bot():
                     win_rate = (match_wins / total_games * 100) if total_games > 0 else 0.0
 
                     result_msg = (
-                        f"🎯 *RESULT UPDATE*\n"
+                        f"🎯 *RESULT*\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"🆔 #{latest_issue[-5:]}\n"
                         f"🎯 PRED: `{last_predicted_signal}` → `{last_predicted_num}`\n"
@@ -336,15 +369,19 @@ async def prediction_bot():
 
                     try:
                         await bot.send_message(chat_id=CHAT_ID, text=result_msg, parse_mode="Markdown")
+                        result_sent_for_period[latest_issue] = True
+                        print(f"✅ Result sent for {latest_issue}")
                         await asyncio.sleep(1)
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f"❌ Failed to send result: {e}")
 
+                    # Hourly Report চেক
                     await send_hourly_report()
 
                 else:
+                    # NO MATCH
                     result_msg = (
-                        f"🎯 *RESULT (NO MATCH)*\n"
+                        f"🎯 *RESULT*\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"🆔 #{latest_issue[-5:]}\n"
                         f"🎰 ACTUAL: `{actual_num}` (`{actual_type}`)\n"
@@ -354,21 +391,29 @@ async def prediction_bot():
 
                     try:
                         await bot.send_message(chat_id=CHAT_ID, text=result_msg, parse_mode="Markdown")
+                        result_sent_for_period[latest_issue] = True
+                        print(f"✅ No-Match result sent for {latest_issue}")
                         await asyncio.sleep(1)
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f"❌ Failed to send result: {e}")
 
+                # ক্লিনআপ
                 last_predicted_period = None
                 last_predicted_signal = None
                 last_predicted_num = None
                 last_match_status = None
 
-            # NEW PREDICTION
+            # ============================================================
+            # NEW PREDICTION - শুধু ১ বার
+            # ============================================================
             next_period = str(int(latest_issue) + 1)
 
             if not prediction_sent_for_period.get(next_period, False):
                 pred = fusion_predict(next_period)
                 last_match_status = 'match' if pred['matched'] else 'no_match'
+
+                # ডিবাগ প্রিন্ট
+                print(f"🔮 Next: {next_period} | GURU: {pred['guru']} | RGB: {pred['rgb']} | MATCH: {pred['matched']}")
 
                 if pred['matched']:
                     pred_msg = (
@@ -396,9 +441,9 @@ async def prediction_bot():
 
                     try:
                         await bot.send_message(chat_id=CHAT_ID, text=pred_msg, parse_mode="Markdown")
-                        print(f"✅ MATCH: {next_period} → {pred['prediction']}")
-                    except:
-                        pass
+                        print(f"✅ Prediction sent for {next_period}")
+                    except Exception as e:
+                        print(f"❌ Failed to send prediction: {e}")
 
                 else:
                     no_match_msg = (
@@ -421,16 +466,20 @@ async def prediction_bot():
 
                     try:
                         await bot.send_message(chat_id=CHAT_ID, text=no_match_msg, parse_mode="Markdown")
-                        print(f"❌ NO MATCH: {next_period}")
-                    except:
-                        pass
+                        print(f"✅ No-Match prediction sent for {next_period}")
+                    except Exception as e:
+                        print(f"❌ Failed to send prediction: {e}")
 
+                # পুরানো ডাটা ক্লিনআপ
                 if len(prediction_sent_for_period) > 5:
                     oldest = min(prediction_sent_for_period.keys())
                     del prediction_sent_for_period[oldest]
+                if len(result_sent_for_period) > 5:
+                    oldest = min(result_sent_for_period.keys())
+                    del result_sent_for_period[oldest]
 
         except Exception as e:
-            print(f"❌ {e}")
+            print(f"❌ Error in main loop: {e}")
             await asyncio.sleep(5)
 
 if __name__ == '__main__':
@@ -439,4 +488,5 @@ if __name__ == '__main__':
     print(f"🤖 TOKEN: {BOT_TOKEN[:10]}...")
     print(f"📡 CHAT: {CHAT_ID}")
     print("━━━━━━━━━━━━━━━━━━━━")
+    print("🔄 Starting bot...")
     asyncio.run(prediction_bot())
