@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-🔥 GURU + DARK X FUSION BOT — Wingo 1M Predictor
-🧠 ENGINES: GURU + DARK X (1M FIXED)
+🔥 GURU + PATTERN FUSION BOT — Wingo 30S Predictor
+🧠 ENGINES: GURU + PATTERN (30S FIXED)
 ✅ MATCH = PREDICTION + RESULT
 ❌ NO MATCH = SHOW RESULT ONLY
 """
@@ -28,7 +28,7 @@ except ImportError:
 # ============================================================
 BOT_TOKEN = "8632082751:AAEcUqV8hFs-Id0E9uL0ltvW-e6ybZkKcJ0"
 CHAT_ID = "6678981102"
-API_URL = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
+API_URL = "https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json"  # 30S
 
 # ============================================================
 # ওয়েব সার্ভার (পোর্ট 8080)
@@ -37,7 +37,7 @@ class DummyServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"GURU+DARK X FUSION BOT is running!")
+        self.wfile.write(b"GURU+PATTERN FUSION BOT is running!")
 
 def run_dummy_server():
     port = int(os.environ.get("PORT", 8080))
@@ -70,7 +70,6 @@ match_losses = 0
 match_total = 0
 current_streak = 0
 best_streak = 0
-current_level = 1
 
 history_data = []
 last_predicted_period = None
@@ -94,7 +93,7 @@ last_hour_report_time = time.time()
 hourly_report_sent = False
 
 # ============================================================
-# 🧠 GURU ALGORITHM
+# 🧠 GURU ALGORITHM (30S)
 # ============================================================
 def guru_algorithm(period_number):
     str_period = str(period_number)
@@ -108,80 +107,62 @@ def guru_algorithm(period_number):
         conf = 70 + (4 - remainder) * 3
     conf = min(95, max(55, conf))
     
-    return pred, remainder, conf
-
-# ============================================================
-# 🧠 DARK X ENGINE
-# ============================================================
-def dark_x_engine(data, level):
-    """
-    DARK X ALGORITHM - Anti-Loss Pattern Detection
-    """
-    if len(data) < 3:
-        return {"prediction": "BIG", "confidence": 50, "number": 7}
-    
-    types = [d['side'] for d in data[:10]]
-    last1 = types[0] if len(types) > 0 else "BIG"
-    last2 = types[1] if len(types) > 1 else "BIG"
-    last3 = types[2] if len(types) > 2 else "BIG"
-    
-    # Base prediction
-    if last1 == "SMALL":
-        pred = "BIG"
-        conf = 75
-    else:
-        pred = "SMALL"
-        conf = 60
-    
-    # Strong patterns
-    if last1 == "BIG" and last2 == "BIG":
-        pred = "SMALL"
-        conf = 90
-    elif last1 == "SMALL" and last2 == "SMALL":
-        pred = "BIG"
-        conf = 95
-    elif last1 == "SMALL" and last2 == "BIG":
-        pred = "BIG"
-        conf = 70
-    elif last1 == "BIG" and last2 == "SMALL":
-        pred = "BIG"
-        conf = 85
-    
-    # Triple pattern detection
-    if last1 == last2 == last3:
-        pred = "SMALL" if last1 == "BIG" else "BIG"
-        conf = 98
-    
-    # Level based adjustment (recovery)
-    if level == 3 and len(data) > 0:
-        latest_num = data[0]['number']
-        pred = "SMALL" if latest_num >= 5 else "BIG"
-        conf = 99
-    
-    # Number prediction
+    # 30S এর জন্য নাম্বার জেনারেট
     if pred == "BIG":
-        # BIG numbers: 5,6,7,8,9
         num = random.choice([5, 6, 7, 8, 9])
     else:
-        # SMALL numbers: 0,1,2,3,4
+        num = random.choice([0, 1, 2, 3, 4])
+    
+    return pred, num, conf
+
+# ============================================================
+# 🧠 PATTERN ENGINE (HTML থেকে নেওয়া)
+# ============================================================
+def pattern_engine(data):
+    """
+    PATTERN ALGORITHM - HTML থেকে সরাসরি নেওয়া
+    logic: (last2 + last1) = জোড় → BIG, বিজোড় → SMALL
+    """
+    if len(data) < 2:
+        return {"prediction": "BIG", "confidence": 50, "number": 7}
+    
+    # শেষ ২টি রেজাল্ট
+    last1 = data[0]['number']
+    last2 = data[1]['number']
+    
+    # যোগফল
+    total = last1 + last2
+    
+    # জোড়/বিজোড় চেক
+    if total % 2 == 0:
+        pred = "BIG"
+        conf = 85
+    else:
+        pred = "SMALL"
+        conf = 85
+    
+    # নাম্বার জেনারেট
+    if pred == "BIG":
+        num = random.choice([5, 6, 7, 8, 9])
+    else:
         num = random.choice([0, 1, 2, 3, 4])
     
     return {"prediction": pred, "confidence": conf, "number": num}
 
 # ============================================================
-# 🧠 FUSION ENGINE (GURU + DARK X)
+# 🧠 FUSION ENGINE (GURU + PATTERN)
 # ============================================================
-def fusion_predict(period_number, data, level):
+def fusion_predict(period_number, data):
     guru_pred, guru_num, guru_conf = guru_algorithm(period_number)
-    dark = dark_x_engine(data, level)
-    dark_pred = dark['prediction']
-    dark_conf = dark['confidence']
+    pattern = pattern_engine(data)
+    pattern_pred = pattern['prediction']
+    pattern_conf = pattern['confidence']
     
-    if guru_pred == dark_pred:
+    if guru_pred == pattern_pred:
         matched = True
         final_pred = guru_pred
         final_num = guru_num
-        final_conf = int((guru_conf + dark_conf) / 2)
+        final_conf = int((guru_conf + pattern_conf) / 2)
     else:
         matched = False
         final_pred = guru_pred
@@ -195,13 +176,13 @@ def fusion_predict(period_number, data, level):
         'confidence': final_conf,
         'guru': guru_pred,
         'guru_conf': guru_conf,
-        'dark': dark_pred,
-        'dark_conf': dark_conf,
-        'dark_num': dark['number']
+        'pattern': pattern_pred,
+        'pattern_conf': pattern_conf,
+        'pattern_num': pattern['number']
     }
 
 # ============================================================
-# 📡 API ফেচ
+# 📡 API ফেচ (30S)
 # ============================================================
 def fetch_api_data():
     try:
@@ -243,7 +224,7 @@ async def send_hourly_report():
             f"📉 *WORST LOSS STREAK:* `{hourly_stats['max_loss_streak']}x`\n"
             f"🔥 *CURRENT STREAK:* `{hourly_stats['current_streak']}x {hourly_stats['streak_type']}`\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"💎 GURU+DARK X FUSION BOT"
+            f"💎 GURU+PATTERN FUSION BOT"
         )
         
         try:
@@ -269,25 +250,25 @@ async def send_hourly_report():
 # ============================================================
 async def prediction_bot():
     global match_wins, match_losses, match_total
-    global current_streak, best_streak, current_level
+    global current_streak, best_streak
     global history_data, last_predicted_period
     global last_predicted_signal, last_predicted_num, last_match_status
     global prediction_sent_for_period, result_sent_for_period
     global hourly_report_sent
 
-    print("🔥 GURU+DARK X FUSION BOT STARTED...")
+    print("🔥 GURU+PATTERN FUSION BOT STARTED...")
     print("━━━━━━━━━━━━━━━━━━━━")
-    print("🧠 ENGINES: GURU + DARK X (1M)")
-    print("📡 MODE: 1 MINUTE")
+    print("🧠 ENGINES: GURU + PATTERN (30S)")
+    print("📡 MODE: 30 SECONDS")
     print("━━━━━━━━━━━━━━━━━━━━")
 
     try:
         await bot.send_message(
             chat_id=CHAT_ID,
             text=(
-                "🔥 *GURU+DARK X FUSION BOT* 🔥\n"
+                "🔥 *GURU+PATTERN FUSION BOT* 🔥\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
-                "🧠 ENGINES: GURU + DARK X (1M)\n"
+                "🧠 ENGINES: GURU + PATTERN (30S)\n"
                 "✅ MATCH = PREDICTION + RESULT\n"
                 "❌ NO MATCH = SHOW RESULT ONLY\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
@@ -300,8 +281,9 @@ async def prediction_bot():
 
     while True:
         try:
-            current_sec = int(time.time()) % 60
-            await asyncio.sleep(60 - current_sec + 2)
+            # 30 সেকেন্ডের জন্য অপেক্ষা
+            current_sec = int(time.time()) % 30
+            await asyncio.sleep(30 - current_sec + 2)
 
             raw_list = fetch_api_data()
             if not raw_list:
@@ -328,7 +310,7 @@ async def prediction_bot():
             # ============================================================
             if last_predicted_period == latest_issue and not result_sent_for_period.get(latest_issue, False):
                 if last_match_status == 'match' and last_predicted_signal is not None:
-                    # শুধু সাইজ মিললে WIN (JACKPOT বাদ)
+                    # শুধু সাইজ মিললে WIN
                     is_win = (last_predicted_signal == actual_type)
 
                     if is_win:
@@ -345,7 +327,6 @@ async def prediction_bot():
                             hourly_stats['streak_type'] = 'WIN'
                         if hourly_stats['current_streak'] > hourly_stats['max_win_streak']:
                             hourly_stats['max_win_streak'] = hourly_stats['current_streak']
-                        current_level = 1
                     else:
                         match_losses += 1
                         hourly_stats['total_losses'] += 1
@@ -358,7 +339,6 @@ async def prediction_bot():
                             hourly_stats['streak_type'] = 'LOSS'
                         if hourly_stats['current_streak'] > hourly_stats['max_loss_streak']:
                             hourly_stats['max_loss_streak'] = hourly_stats['current_streak']
-                        current_level = (current_level % 3) + 1
 
                     match_total += 1
                     hourly_stats['total_rounds'] += 1
@@ -376,9 +356,8 @@ async def prediction_bot():
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"📊 WIN RATE: `{win_rate:.1f}%` ({match_wins}W/{match_losses}L)\n"
                         f"🔥 STREAK: `{current_streak:+d}`\n"
-                        f"👑 LEVEL: `{current_level}x`\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💎 GURU+DARK X FUSION BOT"
+                        f"💎 GURU+PATTERN FUSION BOT"
                     )
 
                     try:
@@ -398,7 +377,7 @@ async def prediction_bot():
                         f"🆔 #{latest_issue[-5:]}\n"
                         f"🎰 ACTUAL: `{actual_num}` (`{actual_type}`)\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💎 GURU+DARK X FUSION BOT"
+                        f"💎 GURU+PATTERN FUSION BOT"
                     )
 
                     try:
@@ -420,13 +399,13 @@ async def prediction_bot():
             next_period = str(int(latest_issue) + 1)
 
             if not prediction_sent_for_period.get(next_period, False):
-                pred = fusion_predict(next_period, history_data, current_level)
+                pred = fusion_predict(next_period, history_data)
                 last_match_status = 'match' if pred['matched'] else 'no_match'
 
                 # ডিবাগ
                 print(f"🔮 Next: {next_period}")
                 print(f"   GURU: {pred['guru']} ({pred['guru_conf']}%)")
-                print(f"   DARK X: {pred['dark']} ({pred['dark_conf']}%)")
+                print(f"   PATTERN: {pred['pattern']} ({pred['pattern_conf']}%)")
                 print(f"   MATCH: {pred['matched']}")
 
                 if pred['matched']:
@@ -442,11 +421,10 @@ async def prediction_bot():
                         f"⚡ CONF: `{pred['confidence']}%`\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"🧠 GURU: `{pred['guru']}` ({pred['guru_conf']}%)\n"
-                        f"🧠 DARK X: `{pred['dark']}` ({pred['dark_conf']}%) → {pred['dark_num']}\n"
+                        f"🧠 PATTERN: `{pred['pattern']}` ({pred['pattern_conf']}%) → {pred['pattern_num']}\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"👑 LEVEL: `{current_level}x`\n"
                         f"⏳ RESULT AWAITING...\n"
-                        f"💎 GURU+DARK X FUSION BOT"
+                        f"💎 GURU+PATTERN FUSION BOT"
                     )
 
                     last_predicted_period = next_period
@@ -467,11 +445,11 @@ async def prediction_bot():
                         f"🆔 #{next_period[-5:]}\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"🧠 GURU: `{pred['guru']}` ({pred['guru_conf']}%)\n"
-                        f"🧠 DARK X: `{pred['dark']}` ({pred['dark_conf']}%) → {pred['dark_num']}\n"
+                        f"🧠 PATTERN: `{pred['pattern']}` ({pred['pattern_conf']}%) → {pred['pattern_num']}\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"❌ NO MATCH FOUND\n"
                         f"⏳ RESULT WILL BE SHOWN...\n"
-                        f"💎 GURU+DARK X FUSION BOT"
+                        f"💎 GURU+PATTERN FUSION BOT"
                     )
 
                     last_predicted_period = next_period
@@ -497,13 +475,13 @@ async def prediction_bot():
             await asyncio.sleep(5)
 
 if __name__ == '__main__':
-    print("🔥 GURU+DARK X FUSION BOT")
+    print("🔥 GURU+PATTERN FUSION BOT")
     print("━━━━━━━━━━━━━━━━━━━━")
     print(f"🤖 TOKEN: {BOT_TOKEN[:10]}...")
     print(f"📡 CHAT: {CHAT_ID}")
     print("━━━━━━━━━━━━━━━━━━━━")
-    print("🧠 ENGINES: GURU + DARK X")
-    print("📡 MODE: 1 MINUTE")
+    print("🧠 ENGINES: GURU + PATTERN")
+    print("📡 MODE: 30 SECONDS")
     print("━━━━━━━━━━━━━━━━━━━━")
     print("🔄 Starting bot...")
     asyncio.run(prediction_bot())
