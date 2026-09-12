@@ -547,4 +547,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("\n👋 বট বন্ধ করা হয়েছে")
     except Exception as e:
-        print(f"❌ ফাটাল এরর: {e}")
+        print(f"❌ ফাটাল এরর: {e}") 
