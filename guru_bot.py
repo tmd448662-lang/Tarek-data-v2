@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-🚀 RAJPUT X LX v22 - Telegram Bot
-🧠 8 Algorithms Combined (BIG/SMALL Only)
+🚀 RAJPUT X LX v22 - Telegram Bot (HTML Logic)
+🧠 8 Algorithms - BIG/SMALL Only
 📡 1 MIN WINGO
 🤖 @Tarek3o
 """
@@ -35,6 +35,7 @@ except ImportError:
 BOT_TOKEN = "8632082751:AAEcUqV8hFs-Id0E9uL0ltvW-e6ybZkKcJ0"
 CHAT_ID = "6678981102"
 
+# HTML এর মতো সরাসরি URL (কোনো টাইমস্ট্যাম্প ছাড়া প্রথমে, ফেল হলে টাইমস্ট্যাম্প)
 API_URLS = [
     "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json",
     "https://api.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json",
@@ -95,48 +96,76 @@ prediction_sent_for_period = {}
 last_result_sent = False
 
 # ============================================================
-#  🧠 8 ALGORITHMS (RAJPUT X LX v22)
+#  🧠 RAJPUT X LX v22 - 8 ALGORITHMS (HTML Logic Exactly)
 # ============================================================
-def run_pattern_engine(data):
+def run_pattern_engine(list_data):
     """
-    RAJPUT X LX v22 - 8 Algorithms Combined (BIG/SMALL Only)
+    HTML এর 'runPatternEngine' ফাংশনের হুবহু Python ট্রান্সলেশন
     """
-    numbers = [d['number'] for d in data[:20]]
+    # HTML: list.slice(0, 20).map(x => parseInt(x.number))
+    numbers = []
+    for x in list_data[:20]:
+        try:
+            numbers.append(int(x['number']))
+        except:
+            numbers.append(0)
+    
+    # HTML: raw20 = numbers.map(n => n >= 5 ? 'B' : 'S')
     raw20 = ['B' if n >= 5 else 'S' for n in numbers]
+    
+    # HTML: raw8 = raw20.slice(0, 8)
     raw8 = raw20[:8]
+    
+    # HTML: raw12 = raw20.slice(0, 12)
     raw12 = raw20[:12]
     
-    # ── ALGO 1: Streak Ride ──
+    # ══════════ ALGO 1: Streak ══════════
+    # HTML: let streak = 1; while(streak < raw20.length && raw20[streak] === raw20[0]) streak++;
     streak = 1
     while streak < len(raw20) and raw20[streak] == raw20[0]:
         streak += 1
     streak_type = raw20[0]
+    
     A1 = None
     if streak >= 5:
         A1 = 'BIG' if streak_type == 'B' else 'SMALL'
     elif streak >= 3:
         A1 = 'BIG' if streak_type == 'B' else 'SMALL'
     
-    # ── ALGO 2: Alternator ──
+    # ══════════ ALGO 2: Alternator ══════════
+    # HTML: let altScore = 0; for(let i=0; i<raw8.length-1; i++) if(raw8[i] !== raw8[i+1]) altScore++;
     alt_score = 0
     for i in range(len(raw8) - 1):
         if raw8[i] != raw8[i+1]:
             alt_score += 1
+    # HTML: const isAlt = altScore >= 6;
     is_alt = alt_score >= 6
+    # HTML: const A2 = isAlt ? (raw20[0]==='B'?'SMALL':'BIG') : null;
     A2 = None
     if is_alt:
         A2 = 'SMALL' if raw20[0] == 'B' else 'BIG'
     
-    # ── ALGO 3: Pair Counter ──
+    # ══════════ ALGO 3: Pairs ══════════
+    # HTML: let pairsScore = 0; for(let i=0; i<6; i+=2) if(raw8[i]===raw8[i+1]) pairsScore++;
     pairs_score = 0
     for i in range(0, 6, 2):
         if i + 1 < len(raw8) and raw8[i] == raw8[i+1]:
             pairs_score += 1
+    # HTML: const A3 = pairsScore >= 2 ? (raw20[0]==='B'?'SMALL':'BIG') : null;
     A3 = None
     if pairs_score >= 2:
         A3 = 'SMALL' if raw20[0] == 'B' else 'BIG'
     
-    # ── ALGO 4: Loop Cycle ──
+    # ══════════ ALGO 4: Loop Cycle ══════════
+    # HTML: 
+    # let cycleLen = 0;
+    # outer: for(let len=2; len<=4; len++){
+    #   let match = true;
+    #   for(let i=len; i<Math.min(len*3, raw12.length); i++){
+    #     if(raw12[i] !== raw12[i%len]){ match=false; break outer; }
+    #   }
+    #   if(match){ cycleLen=len; break; }
+    # }
     cycle_len = 0
     for clen in range(2, 5):
         match = True
@@ -147,14 +176,21 @@ def run_pattern_engine(data):
         if match:
             cycle_len = clen
             break
+    
+    # HTML: const A4 = cycleLen > 0 ? (raw12[cycleLen-1]==='B'?'BIG':'SMALL') : null;
     A4 = None
     if cycle_len > 0 and cycle_len <= len(raw12):
         A4 = 'BIG' if raw12[cycle_len - 1] == 'B' else 'SMALL'
     
-    # ── ALGO 5: Hot Zone ──
+    # ══════════ ALGO 5: Hot Zone ══════════
+    # HTML: const bigCount = raw20.filter(x=>x==='B').length;
+    # const bigPct = Math.round((bigCount/20)*100);
+    # const smlPct = 100 - bigPct;
     big_count = raw20.count('B')
     big_pct = round((big_count / len(raw20)) * 100) if len(raw20) > 0 else 50
     sml_pct = 100 - big_pct
+    
+    # HTML: if(bigPct >= 70) A5 = 'SMALL'; else if(smlPct >= 70) A5 = 'BIG'; else A5 = bigCount > 10 ? 'BIG' : 'SMALL';
     A5 = None
     if big_pct >= 70:
         A5 = 'SMALL'
@@ -163,18 +199,29 @@ def run_pattern_engine(data):
     else:
         A5 = 'BIG' if big_count > 10 else 'SMALL'
     
-    # ── ALGO 6: Seed Parity ──
+    # ══════════ ALGO 6: Seed Parity ══════════
+    # HTML: const seed = parseInt(list[0].issueNumber.slice(-4));
+    # const bigBias = numbers.slice(0,10).filter(n=>n>=5).length;
+    # const A6 = (seed%2===0) ? (bigBias>=5?'BIG':'SMALL') : (numbers[0]>=5?'SMALL':'BIG');
     try:
-        seed_str = str(data[0]['issueNumber'])[-4:]
+        seed_str = str(list_data[0]['issueNumber'])[-4:]
         seed = int(seed_str) if seed_str.isdigit() else 0
     except:
         seed = 0
-    big_bias = len([n for n in numbers[:10] if n >= 5])
-    A6 = (('BIG' if big_bias >= 5 else 'SMALL') if seed % 2 == 0 
-          else ('SMALL' if numbers[0] >= 5 else 'BIG'))
     
-    # ── ALGO 7: Double Pattern ──
+    big_bias = len([n for n in numbers[:10] if n >= 5])
+    
+    if seed % 2 == 0:
+        A6 = 'BIG' if big_bias >= 5 else 'SMALL'
+    else:
+        A6 = 'SMALL' if numbers[0] >= 5 else 'BIG'
+    
+    # ══════════ ALGO 7: Double Pattern ══════════
+    # HTML: const d = raw20.slice(0,4).join('');
     d = ''.join(raw20[:4])
+    
+    # HTML: if(d.startsWith('BB')) A7='SMALL'; else if(d.startsWith('SS')) A7='BIG';
+    # else if(d==='BSBS'||d==='BSB') A7='SMALL'; else if(d==='SBSB'||d==='SBS') A7='BIG';
     A7 = None
     if d.startswith('BB'):
         A7 = 'SMALL'
@@ -185,7 +232,15 @@ def run_pattern_engine(data):
     elif d in ['SBSB', 'SBS']:
         A7 = 'BIG'
     
-    # ── ALGO 8: Fibonacci Momentum ──
+    # ══════════ ALGO 8: Fibonacci Momentum ══════════
+    # HTML:
+    # const fibs = [1,1,2,3,5,8,13,21];
+    # let bS=0, sS=0;
+    # for(let i=0; i<Math.min(8,numbers.length); i++){
+    #   if(numbers[i]>=5) bS+=fibs[7-i];
+    #   else sS+=fibs[7-i];
+    # }
+    # const A8 = bS > sS ? 'SMALL' : 'BIG';
     fibs = [1, 1, 2, 3, 5, 8, 13, 21]
     bS = 0
     sS = 0
@@ -194,9 +249,17 @@ def run_pattern_engine(data):
             bS += fibs[7 - i]
         else:
             sS += fibs[7 - i]
+    
     A8 = 'SMALL' if bS > sS else 'BIG'
     
-    # ── VOTE ──
+    # ══════════ VOTE ══════════
+    # HTML:
+    # const algos = [
+    #   { name:'STREAK RIDE', v:A1 }, { name:'ALTERNATOR', v:A2 },
+    #   { name:'PAIR COUNTER', v:A3 }, { name:'LOOP CYCLE', v:A4 },
+    #   { name:'HOT ZONE', v:A5 }, { name:'SEED PARITY', v:A6 },
+    #   { name:'DOUBLE PATT.', v:A7 }, { name:'FIB MOMENTUM', v:A8 },
+    # ];
     algos = [
         {'name': 'STREAK RIDE', 'v': A1},
         {'name': 'ALTERNATOR', 'v': A2},
@@ -208,6 +271,7 @@ def run_pattern_engine(data):
         {'name': 'FIB MOMENTUM', 'v': A8},
     ]
     
+    # HTML: let bVotes=0, sVotes=0; algos.forEach(a => { if(a.v==='BIG') bVotes++; else if(a.v==='SMALL') sVotes++; });
     b_votes = 0
     s_votes = 0
     for a in algos:
@@ -216,11 +280,23 @@ def run_pattern_engine(data):
         elif a['v'] == 'SMALL':
             s_votes += 1
     
+    # HTML: const winner = bVotes >= sVotes ? 'BIG' : 'SMALL';
     winner = 'BIG' if b_votes >= s_votes else 'SMALL'
+    
+    # HTML: const winV = winner==='BIG' ? bVotes : sVotes;
+    # const consensus = Math.round((winV/8)*100);
     win_v = b_votes if winner == 'BIG' else s_votes
     consensus = round((win_v / 8) * 100)
     
-    # ── Strategy Name ──
+    # ══════════ STRATEGY NAME (HTML logic) ══════════
+    # HTML:
+    # if(streak >= 5) { strategy='🐉 ULTRA DRAGON'; confidence=88+Math.floor(Math.random()*5); }
+    # else if(streak >= 3) { strategy='🔥 STREAK RIDE'; confidence=81+Math.floor(Math.random()*6); }
+    # else if(cycleLen > 0) { strategy=`🔁 LOOP-${cycleLen}X`; confidence=79+Math.floor(Math.random()*7); }
+    # else if(isAlt) { strategy='🔀 ALTERNATOR'; confidence=84+Math.floor(Math.random()*5); }
+    # else if(pairsScore>=2) { strategy='👥 PAIR COUNTER'; confidence=75+Math.floor(Math.random()*8); }
+    # else { strategy='⚡ REVERSION V3'; confidence=70+Math.floor(Math.random()*9); }
+    
     if streak >= 5:
         strategy = '🐉 ULTRA DRAGON'
         confidence = 88 + random.randint(0, 4)
@@ -240,7 +316,8 @@ def run_pattern_engine(data):
         strategy = '⚡ REVERSION V3'
         confidence = 70 + random.randint(0, 8)
     
-    # Blend with consensus
+    # HTML: confidence = Math.round((confidence + consensus) / 2);
+    # HTML: confidence = Math.min(97, Math.max(68, confidence));
     confidence = round((confidence + consensus) / 2)
     confidence = max(68, min(97, confidence))
     
@@ -255,29 +332,48 @@ def run_pattern_engine(data):
         'streak': streak,
         'cycle_len': cycle_len,
         'is_alt': is_alt,
+        'pairs_score': pairs_score,
+        'alt_score': alt_score,
         'algos': algos
     }
 
-# ==================== 📡 API ফেচ ====================
+# ==================== 📡 API ফেচ (HTML এর মতো) ====================
 def fetch_api_data():
+    # HTML এর মতো headers
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
         'Referer': 'https://www.google.com/',
         'Cache-Control': 'no-cache',
     }
     
     for api_url in API_URLS:
+        # প্রথমে টাইমস্ট্যাম্প ছাড়া চেষ্টা (HTML এর মতো)
         try:
-            url = api_url + "?t=" + str(int(time.time() * 1000))
-            res = requests.get(url, headers=headers, timeout=10)
+            res = requests.get(api_url, headers=headers, timeout=10)
             if res.status_code == 200:
                 data = res.json()
                 list_data = data.get("data", {}).get("list", [])
-                if list_data:
+                if list_data and len(list_data) > 0:
+                    logger.info(f"✅ API সফল (no-ts): {len(list_data)} items")
                     return list_data
         except Exception as e:
-            logger.warning(f"⚠️ {api_url} → {e}")
+            logger.warning(f"⚠️ {api_url} (no-ts) → {e}")
+        
+        # টাইমস্ট্যাম্প সহ চেষ্টা
+        try:
+            url_ts = api_url + "?ts=" + str(int(time.time() * 1000))
+            res = requests.get(url_ts, headers=headers, timeout=10)
+            if res.status_code == 200:
+                data = res.json()
+                list_data = data.get("data", {}).get("list", [])
+                if list_data and len(list_data) > 0:
+                    logger.info(f"✅ API সফল (with-ts): {len(list_data)} items")
+                    return list_data
+        except Exception as e:
+            logger.warning(f"⚠️ {api_url} (with-ts) → {e}")
+    
     return []
 
 # ==================== 📤 মেসেজ সেন্ড ====================
@@ -342,12 +438,12 @@ async def prediction_bot():
     global last_predicted_period, last_predicted_signal
     global prediction_sent_for_period, last_result_sent
 
-    logger.info("🚀 RAJPUT X LX v22 - 1M WINGO স্টার্ট...")
+    logger.info("🚀 RAJPUT X LX v22 (HTML Logic) স্টার্ট...")
 
     await send_message(
         "🚀 *RAJPUT X LX v22 - 1M WINGO* 🚀\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
-        "🧠 *8 Algorithms Combined:*\n"
+        "🧠 *8 Algorithms (HTML Logic):*\n"
         "1️⃣ Streak Ride\n"
         "2️⃣ Alternator\n"
         "3️⃣ Pair Counter\n"
@@ -375,23 +471,18 @@ async def prediction_bot():
 
             raw_list = fetch_api_data()
             if not raw_list:
+                logger.warning("⚠️ ডেটা নেই, রিট্রাই...")
                 continue
 
-            history_data = []
-            for h in raw_list[:20]:
-                num = int(h['number'])
-                history_data.append({
-                    'issueNumber': str(h['issueNumber']),
-                    'number': num,
-                    'side': "BIG" if num >= 5 else "SMALL"
-                })
-
-            latest = history_data[0]
-            latest_issue = latest['issueNumber']
-            actual_num = latest['number']
+            latest = raw_list[0]
+            latest_issue = str(latest['issueNumber'])
+            actual_num = int(latest['number'])
             actual_type = "BIG" if actual_num >= 5 else "SMALL"
 
+            # Debug log
+            first_10_sides = ['B' if int(x['number']) >= 5 else 'S' for x in raw_list[:10]]
             logger.info(f"📡 পিরিয়ড: {latest_issue}, নাম্বার: {actual_num} ({actual_type})")
+            logger.info(f"📊 First 10 sides: {first_10_sides}")
 
             # ===== রেজাল্ট চেক =====
             if last_predicted_period == latest_issue and last_predicted_signal is not None and not last_result_sent:
@@ -464,12 +555,18 @@ async def prediction_bot():
             
             if not prediction_sent_for_period.get(next_period, False):
                 
-                # 🔥 RAJPUT X LX v22 Engine
-                result = run_pattern_engine(history_data)
+                # 🔥 RAJPUT X LX v22 (HTML Logic Exactly)
+                result = run_pattern_engine(raw_list)
+                
+                # Log debug info
+                logger.info(f"🎯 Prediction: {result['winner']} | Vote: {result['b_votes']}B vs {result['s_votes']}S | Strategy: {result['strategy']}")
+                for a in result['algos']:
+                    v = a['v'] if a['v'] else '—'
+                    logger.info(f"   {a['name']}: {v}")
                 
                 streak_emoji = "🔥" if current_streak > 0 else "📉" if current_streak < 0 else "⏸️"
                 
-                # Algo votes display
+                # Algo votes display (top 4)
                 algo_display = ""
                 for a in result['algos'][:4]:
                     v = a['v'] if a['v'] else '—'
@@ -502,7 +599,7 @@ async def prediction_bot():
                 last_result_sent = False
 
                 await send_message(prediction_msg)
-                logger.info(f"✅ প্রেডিকশন: {next_period} → {result['winner']} ({result['strategy']})")
+                logger.info(f"✅ প্রেডিকশন পাঠানো: {next_period} → {result['winner']}")
 
                 if len(prediction_sent_for_period) > 10:
                     oldest = min(prediction_sent_for_period.keys())
@@ -514,9 +611,9 @@ async def prediction_bot():
 
 # ==================== 🚀 স্টার্ট ====================
 if __name__ == '__main__':
-    print("🚀 RAJPUT X LX v22 - 1M WINGO")
+    print("🚀 RAJPUT X LX v22 - 1M WINGO (HTML Logic)")
     print("━━━━━━━━━━━━━━━━━━━━")
-    print("🧠 8 Algorithms Combined")
+    print("🧠 8 Algorithms (HTML Exactly)")
     print("🎯 BIG/SMALL Only")
     print("📡 MODE: 1 MIN WINGO")
     print("🤖 BOT: @Tarek3o")
