@@ -3,7 +3,7 @@
 
 """
 🔥 PATTERN MATCHER - 5/6/7 Digit - 1 MIN WINGO
-📊 PDF 1 Based Bot (No Pattern = Skip)
+📊 PDF 1 Based Bot
 🤖 @Tarek3o
 """
 
@@ -80,14 +80,12 @@ total_rounds = 0
 current_streak = 0
 best_win_streak = 0
 worst_loss_streak = 0
-skip_count = 0
 
 hourly_wins = 0
 hourly_losses = 0
 hourly_rounds = 0
 hourly_best_win_streak = 0
 hourly_worst_loss_streak = 0
-hourly_skip = 0
 
 last_predicted_period = None
 last_predicted_signal = None
@@ -136,20 +134,16 @@ ALL_PATTERNS.update(PATTERNS_6)
 ALL_PATTERNS.update(PATTERNS_7)
 
 # ============================================================
-#  🧠 PATTERN MATCHER ENGINE (No Pattern = Skip)
+#  🧠 PATTERN MATCHER ENGINE
 # ============================================================
 def pattern_matcher(data):
     """শেষ 5/6/7টি রেজাল্ট নিয়ে প্যাটার্ন ম্যাচ করে"""
-    if len(data) < 5:
-        return {
-            "prediction": None, "confidence": 0,
-            "reason": "INSUFFICIENT DATA",
-            "pattern": None, "pattern_type": "NONE"
-        }
+    if len(data) < 7:
+        return {"prediction": "BIG", "confidence": 50, "reason": "INSUFFICIENT DATA", "pattern": None, "pattern_type": "NONE"}
     
     sides = [d['side'][0] for d in data]
     
-    # 7-digit চেক (সবচেয়ে সঠিক)
+    # 7-digit
     if len(sides) >= 7:
         pattern_7 = ''.join(sides[:7])
         if pattern_7 in PATTERNS_7:
@@ -161,7 +155,7 @@ def pattern_matcher(data):
                 "pattern": pattern_7, "pattern_type": "7-DIGIT"
             }
     
-    # 6-digit চেক
+    # 6-digit
     if len(sides) >= 6:
         pattern_6 = ''.join(sides[:6])
         if pattern_6 in PATTERNS_6:
@@ -173,7 +167,7 @@ def pattern_matcher(data):
                 "pattern": pattern_6, "pattern_type": "6-DIGIT"
             }
     
-    # 5-digit চেক
+    # 5-digit
     if len(sides) >= 5:
         pattern_5 = ''.join(sides[:5])
         if pattern_5 in PATTERNS_5:
@@ -185,13 +179,15 @@ def pattern_matcher(data):
                 "pattern": pattern_5, "pattern_type": "5-DIGIT"
             }
     
-    # ❌ কোনো প্যাটার্ন ম্যাচ না হলে → SKIP
+    # Majority
+    recent5 = sides[:5]
+    big_count = recent5.count("B")
+    small_count = recent5.count("S")
+    pred = "BIG" if big_count >= small_count else "SMALL"
     return {
-        "prediction": None,
-        "confidence": 0,
-        "reason": "NO PATTERN MATCHED - SKIPPED",
-        "pattern": None,
-        "pattern_type": "SKIP"
+        "prediction": pred, "confidence": 55,
+        "reason": f"NO PATTERN (Majority {big_count}B-{small_count}S)",
+        "pattern": None, "pattern_type": "MAJORITY"
     }
 
 # ==================== 📡 API ফেচ ====================
@@ -241,16 +237,15 @@ async def send_hourly_report():
     global hourly_best_win_streak, hourly_worst_loss_streak
     global total_wins, total_losses, total_rounds
     global best_win_streak, worst_loss_streak
-    global hourly_skip, skip_count
     
-    if hourly_rounds == 0 and hourly_skip == 0:
+    if hourly_rounds == 0:
         return
     
     hourly_win_rate = (hourly_wins / hourly_rounds * 100) if hourly_rounds > 0 else 0
     total_win_rate = (total_wins / total_rounds * 100) if total_rounds > 0 else 0
     
     report_msg = (
-        f"📊 *আওয়ারলি রিপোর্ট - PATTERN MATCHER*\n"
+        f"📊 *আওয়ারলি রিপোর্ট - 1M PATTERN MATCHER*\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🕐 *সময়:* {datetime.now().strftime('%I:%M %p')}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -258,7 +253,6 @@ async def send_hourly_report():
         f"✅ *এই ঘন্টায় জয়:* `{hourly_wins}`\n"
         f"❌ *এই ঘন্টায় হার:* `{hourly_losses}`\n"
         f"📈 *এই ঘন্টায় হার:* `{hourly_win_rate:.1f}%`\n"
-        f"⏭️ *এই ঘন্টায় Skip:* `{hourly_skip}`\n"
         f"🔥 *সেরা জয় স্ট্রিক:* `{hourly_best_win_streak}x`\n"
         f"📉 *সেরা হার স্ট্রিক:* `{hourly_worst_loss_streak}x`\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -266,7 +260,6 @@ async def send_hourly_report():
         f"✅ *মোট জয়:* `{total_wins}`\n"
         f"❌ *মোট হার:* `{total_losses}`\n"
         f"📈 *মোট জয়ের হার:* `{total_win_rate:.1f}%`\n"
-        f"⏭️ *মোট Skip:* `{skip_count}`\n"
         f"🔥 *সেরা জয় স্ট্রিক:* `{best_win_streak}x`\n"
         f"📉 *সেরা হার স্ট্রিক:* `{worst_loss_streak}x`\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -280,7 +273,6 @@ async def send_hourly_report():
     hourly_rounds = 0
     hourly_best_win_streak = 0
     hourly_worst_loss_streak = 0
-    hourly_skip = 0
 
 # ==================== 🚀 মেইন লুপ ====================
 async def prediction_bot():
@@ -290,12 +282,11 @@ async def prediction_bot():
     global current_streak, best_win_streak, worst_loss_streak
     global last_predicted_period, last_predicted_signal
     global last_pattern_matched, prediction_sent_for_period
-    global last_result_sent, skip_count, hourly_skip
+    global last_result_sent
 
     logger.info("🔥 PATTERN MATCHER - 1M WINGO স্টার্ট...")
     logger.info(f"📚 5-Digit: {len(PATTERNS_5)} | 6-Digit: {len(PATTERNS_6)} | 7-Digit: {len(PATTERNS_7)}")
     logger.info(f"📊 মোট প্যাটার্ন: {len(ALL_PATTERNS)}")
-    logger.info("⏭️ No Pattern = Skip")
 
     await send_message(
         "🔥 *PATTERN MATCHER - 1M WINGO* 🔥\n"
@@ -306,7 +297,6 @@ async def prediction_bot():
         f"• 7-Digit: `{len(PATTERNS_7)}` patterns\n"
         f"• মোট: `{len(ALL_PATTERNS)}` patterns\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
-        "⏭️ *No Pattern = Skip (কিছুই পাঠাবে না)*\n"
         "📡 *মোড:* 1 MIN WINGO\n"
         "🤖 *বট:* @Tarek3o\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
@@ -411,20 +401,6 @@ async def prediction_bot():
             if not prediction_sent_for_period.get(next_period, False):
                 
                 pred = pattern_matcher(history_data)
-                
-                # ❌ প্যাটার্ন না মিললে SKIP
-                if pred['prediction'] is None:
-                    logger.info(f"⏭️ SKIP: {next_period} - No pattern matched")
-                    prediction_sent_for_period[next_period] = True
-                    skip_count += 1
-                    hourly_skip += 1
-                    
-                    # পুরনো পিরিয়ড ক্লিয়ার
-                    if len(prediction_sent_for_period) > 10:
-                        oldest = min(prediction_sent_for_period.keys())
-                        del prediction_sent_for_period[oldest]
-                    continue
-                
                 last_pattern_matched = pred.get('pattern')
                 
                 streak_emoji = "🔥" if current_streak > 0 else "📉" if current_streak < 0 else "⏸️"
@@ -433,8 +409,10 @@ async def prediction_bot():
                     rec = "🔥 হাই কনফিডেন্স"
                 elif pred['confidence'] >= 70:
                     rec = "⚡ মিডিয়াম কনফিডেন্স"
-                else:
+                elif pred['confidence'] >= 60:
                     rec = "⚠️ লো কনফিডেন্স"
+                else:
+                    rec = "🟡 নো প্যাটার্ন - সতর্ক থাকুন"
 
                 prediction_msg = (
                     f"🔥 *PATTERN MATCHER - 1M WINGO* 🔥\n"
@@ -464,7 +442,7 @@ async def prediction_bot():
                 await send_message(prediction_msg)
                 logger.info(f"✅ প্রেডিকশন: {next_period} → {pred['prediction']} ({pred['reason']})")
 
-                if len(prediction_sent_for_period) > 10:
+                if len(prediction_sent_for_period) > 5:
                     oldest = min(prediction_sent_for_period.keys())
                     del prediction_sent_for_period[oldest]
 
@@ -480,7 +458,6 @@ if __name__ == '__main__':
     print(f"📚 6-Digit Patterns: {len(PATTERNS_6)}")
     print(f"📚 7-Digit Patterns: {len(PATTERNS_7)}")
     print(f"📊 Total: {len(ALL_PATTERNS)}")
-    print("⏭️ No Pattern = Skip")
     print("📡 MODE: 1 MIN WINGO")
     print("🤖 BOT: @Tarek3o")
     print("━━━━━━━━━━━━━━━━━━━━")
