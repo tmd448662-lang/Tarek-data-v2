@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-🔥 PATTERN MATCHER + REAL VIP V3 - 30s WINGO
+🔥 PATTERN MATCHER + REAL VIP V3 - 5M WINGO
 🎯 MATCH হলে → MATCH FOUND Prediction
 🎯 NO MATCH হলে → Real VIP V3 Prediction
 🤖 @Tarek3o
@@ -35,10 +35,10 @@ except ImportError:
 BOT_TOKEN = "8632082751:AAEcUqV8hFs-Id0E9uL0ltvW-e6ybZkKcJ0"
 CHAT_ID = "6678981102"
 
-# ✅ 30s WINGO API
+# ✅ 5 MIN WINGO API
 API_URLS = [
-    "https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json",
-    "https://api.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json",
+    "https://draw.ar-lottery01.com/WinGo/WinGo_5M/GetHistoryIssuePage.json",
+    "https://api.ar-lottery01.com/WinGo/WinGo_5M/GetHistoryIssuePage.json",
 ]
 
 # ==================== 🌐 ওয়েব সার্ভার ====================
@@ -316,7 +316,7 @@ async def send_hourly_report():
     total_win_rate = (total_wins / total_rounds * 100) if total_rounds > 0 else 0
     
     report_msg = (
-        f"📊 *আওয়ারলি রিপোর্ট - 30s MATCH/NO MATCH*\n"
+        f"📊 *আওয়ারলি রিপোর্ট - 5M MATCH/NO MATCH*\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🕐 *সময়:* {datetime.now().strftime('%I:%M %p')}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -358,10 +358,10 @@ async def prediction_bot():
     global last_predicted_period, last_predicted_signal
     global prediction_sent_for_period, last_result_sent
 
-    logger.info("🔥 MATCH/NO MATCH - 30s WINGO স্টার্ট...")
+    logger.info("🔥 MATCH/NO MATCH - 5M WINGO স্টার্ট...")
 
     await send_message(
-        "🔥 *MATCH / NO MATCH BOT - 30s* 🔥\n"
+        "🔥 *MATCH / NO MATCH BOT - 5M* 🔥\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         "🧠 *2 Engines:*\n"
         "1️⃣ PATTERN MATCHER (PDF 1)\n"
@@ -369,7 +369,7 @@ async def prediction_bot():
         "━━━━━━━━━━━━━━━━━━━━\n"
         "✅ *MATCH* = দুই ইঞ্জিন একমত\n"
         "⚠️ *NO MATCH* = REAL VIP V3 প্রেডিকশন\n"
-        "📡 *মোড:* 30 SEC WINGO\n"
+        "📡 *মোড:* 5 MIN WINGO\n"
         "🤖 *বট:* @Tarek3o\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         "⏳ প্রথম সিগন্যালের জন্য অপেক্ষা..."
@@ -379,9 +379,9 @@ async def prediction_bot():
 
     while True:
         try:
-            # ✅ 30 SEC (30 সেকেন্ড) অপেক্ষা
-            current_sec = int(time.time()) % 30
-            sleep_time = 30 - current_sec + 2
+            # ✅ 5 MIN (300 সেকেন্ড) অপেক্ষা
+            current_sec = int(time.time()) % 300
+            sleep_time = 300 - current_sec + 5
             logger.info(f"⏳ অপেক্ষা {sleep_time} সেকেন্ড...")
             await asyncio.sleep(sleep_time)
 
@@ -493,7 +493,7 @@ async def prediction_bot():
                     final_pred = pattern_pred
                     
                     prediction_msg = (
-                        f"🔥 *MATCH FOUND - 30s WINGO* 🔥\n"
+                        f"🔥 *MATCH FOUND - 5M WINGO* 🔥\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"🆔 পিরিয়ড: `#{next_period[-5:]}`\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -522,7 +522,7 @@ async def prediction_bot():
                     final_pred = vip_pred
                     
                     prediction_msg = (
-                        f"⚠️ *NO MATCH - 30s WINGO* ⚠️\n"
+                        f"⚠️ *NO MATCH - 5M WINGO* ⚠️\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
                         f"🆔 পিরিয়ড: `#{next_period[-5:]}`\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -562,14 +562,14 @@ async def prediction_bot():
 
 # ==================== 🚀 স্টার্ট ====================
 if __name__ == '__main__':
-    print("🔥 MATCH / NO MATCH BOT - 30s WINGO")
+    print("🔥 MATCH / NO MATCH BOT - 5M WINGO")
     print("━━━━━━━━━━━━━━━━━━━━")
     print("🧠 2 Engines:")
     print("   1. PATTERN MATCHER (PDF 1)")
     print("   2. REAL VIP V3 (Neural)")
     print("✅ MATCH = দুই ইঞ্জিন একমত")
     print("⚠️ NO MATCH = REAL VIP V3 প্রেডিকশন")
-    print("📡 MODE: 30 SEC WINGO")
+    print("📡 MODE: 5 MIN WINGO")
     print("🤖 BOT: @Tarek3o")
     print("━━━━━━━━━━━━━━━━━━━━")
     
