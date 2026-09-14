@@ -2,9 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-🔥 PATTERN MATCHER + REAL VIP V3 - 5M WINGO
-🎯 MATCH হলে → MATCH FOUND Prediction
-🎯 NO MATCH হলে → Real VIP V3 Prediction
+🔥 PATTERN MATCHER - 5/6/7 Digit - 5 MIN WINGO
+📊 PDF 1 Based Bot (No Pattern = Majority)
 🤖 @Tarek3o
 """
 
@@ -12,7 +11,6 @@ import asyncio
 import time
 import requests
 import os
-import random
 import logging
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -46,7 +44,7 @@ class DummyServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"MATCH/NO MATCH BOT is running!")
+        self.wfile.write(b"PATTERN MATCHER BOT is running!")
 
 def run_dummy_server():
     port = int(os.environ.get("PORT", 8080))
@@ -83,9 +81,6 @@ current_streak = 0
 best_win_streak = 0
 worst_loss_streak = 0
 
-match_count = 0
-no_match_count = 0
-
 hourly_wins = 0
 hourly_losses = 0
 hourly_rounds = 0
@@ -94,12 +89,15 @@ hourly_worst_loss_streak = 0
 
 last_predicted_period = None
 last_predicted_signal = None
+last_pattern_matched = None
 prediction_sent_for_period = {}
 last_result_sent = False
 
 # ============================================================
-#  📚 PATTERN DATABASE (PDF 1)
+#  📚 PATTERN DATABASE (PDF 1 থেকে)
 # ============================================================
+
+# 5-Digit Patterns
 PATTERNS_5 = {
     "SSBSS": "S", "BBSBS": "S", "SBBBS": "B", "BSBBB": "S",
     "BBBBS": "B", "BBBSB": "B", "SSBSB": "B",
@@ -109,6 +107,7 @@ PATTERNS_5 = {
     "SBSSBB": "B", "BBSSSB": "B", "BSSBSB": "S",
 }
 
+# 6-Digit Patterns
 PATTERNS_6 = {
     "BSBBSS": "S", "BSBSSS": "S", "SSSBBB": "B", "SSSBBS": "B",
     "SSBBBS": "B", "BSBSSB": "S", "BSSSBS": "B", "SSSSSS": "B",
@@ -117,6 +116,7 @@ PATTERNS_6 = {
     "SSBBSB": "B", "SBSSSB": "B", "BSBBBS": "S", "SSSBSB": "B",
 }
 
+# 7-Digit Patterns
 PATTERNS_7 = {
     "SSBBBS": "B", "BSSSSB": "S", "BSSSBB": "S", "SBBBBS": "S",
     "SSSBBB": "B", "BSSBBB": "S", "SSSSBB": "B", "SSSSSSB": "B",
@@ -127,17 +127,29 @@ PATTERNS_7 = {
     "SSSBBSB": "B", "BBSBBBS": "S",
 }
 
+ALL_PATTERNS = {}
+ALL_PATTERNS.update(PATTERNS_5)
+ALL_PATTERNS.update(PATTERNS_6)
+ALL_PATTERNS.update(PATTERNS_7)
+
 # ============================================================
-#  🧠 ENGINE 1: PATTERN MATCHER
+#  🧠 PATTERN MATCHER ENGINE (No Pattern = Majority)
 # ============================================================
 def pattern_matcher(data):
-    """PATTERN MATCHER - PDF 1"""
+    """
+    শেষ 5/6/7টি রেজাল্ট নিয়ে প্যাটার্ন ম্যাচ করে
+    No Pattern হলে Majority Vote দেবে
+    """
     if len(data) < 5:
-        return {"prediction": "BIG", "confidence": 50, "reason": "INSUFFICIENT DATA", "pattern": None, "pattern_type": "NONE"}
+        return {
+            "prediction": "BIG", "confidence": 50,
+            "reason": "INSUFFICIENT DATA",
+            "pattern": None, "pattern_type": "NONE"
+        }
     
     sides = [d['side'][0] for d in data]
     
-    # 7-digit
+    # 7-digit চেক
     if len(sides) >= 7:
         pattern_7 = ''.join(sides[:7])
         if pattern_7 in PATTERNS_7:
@@ -149,7 +161,7 @@ def pattern_matcher(data):
                 "pattern": pattern_7, "pattern_type": "7-DIGIT"
             }
     
-    # 6-digit
+    # 6-digit চেক
     if len(sides) >= 6:
         pattern_6 = ''.join(sides[:6])
         if pattern_6 in PATTERNS_6:
@@ -161,7 +173,7 @@ def pattern_matcher(data):
                 "pattern": pattern_6, "pattern_type": "6-DIGIT"
             }
     
-    # 5-digit
+    # 5-digit চেক
     if len(sides) >= 5:
         pattern_5 = ''.join(sides[:5])
         if pattern_5 in PATTERNS_5:
@@ -173,91 +185,18 @@ def pattern_matcher(data):
                 "pattern": pattern_5, "pattern_type": "5-DIGIT"
             }
     
-    # Majority Vote
+    # ✅ No Pattern → Majority Vote
     recent5 = sides[:5]
     big_count = recent5.count("B")
     small_count = recent5.count("S")
     pred = "BIG" if big_count >= small_count else "SMALL"
     
     return {
-        "prediction": pred, "confidence": 55,
+        "prediction": pred,
+        "confidence": 55,
         "reason": f"MAJORITY ({big_count}B-{small_count}S)",
-        "pattern": None, "pattern_type": "MAJORITY"
-    }
-
-# ============================================================
-#  🧠 ENGINE 2: REAL VIP V3 (NEURAL)
-# ============================================================
-def real_vip_v3_engine(data):
-    """REAL VIP V3 - Anti-Dragon + Mirror + Twin + Majority"""
-    if len(data) < 10:
-        return {"pred": "BIG", "conf": "STABILIZING", "nums": [5, 7], "reason": "INSUFFICIENT DATA"}
-    
-    results = []
-    for d in data[:10]:
-        num = d['number']
-        results.append({
-            "num": num,
-            "size": "BIG" if num >= 5 else "SMALL"
-        })
-    
-    sizes = [r["size"] for r in results]
-    
-    # Dragon Count
-    dragon = 1
-    for i in range(len(sizes) - 1):
-        if sizes[i] == sizes[i+1]:
-            dragon += 1
-        else:
-            break
-    
-    pred = ""
-    conf = ""
-    reason = ""
-    
-    # Anti-Dragon
-    if dragon >= 4:
-        pred = "SMALL" if sizes[0] == "BIG" else "BIG"
-        conf = "ULTRA 🔥 (BREAK)"
-        reason = f"ANTI-DRAGON ({dragon}টি টানা {sizes[0]})"
-    
-    # 1-1 Mirror
-    elif sizes[0] != sizes[1] and sizes[1] != sizes[2]:
-        pred = "SMALL" if sizes[0] == "BIG" else "BIG"
-        conf = "EXTREME 🚀 (MIRROR)"
-        reason = f"1-1 MIRROR ({sizes[0]}-{sizes[1]}-{sizes[2]})"
-    
-    # 2-2 Twin
-    elif sizes[0] == sizes[1] and sizes[2] == sizes[3]:
-        pred = "SMALL" if sizes[0] == "BIG" else "BIG"
-        conf = "HIGH ⚡ (TWIN)"
-        reason = f"2-2 TWIN ({sizes[0]}{sizes[1]}-{sizes[2]}{sizes[3]})"
-    
-    # Majority
-    else:
-        bigs = sizes[:6].count("BIG")
-        pred = "BIG" if bigs >= 3 else "SMALL"
-        conf = "NORMAL ⚡"
-        reason = f"MAJORITY (শেষ ৬টিতে {bigs}B-{6-bigs}S)"
-    
-    # Smart Number Selection
-    recent_nums = set(r["num"] for r in results[:8])
-    pool = [5, 6, 7, 8, 9] if pred == "BIG" else [0, 1, 2, 3, 4]
-    smart_nums = [n for n in pool if n not in recent_nums]
-    
-    if len(smart_nums) < 2:
-        smart_nums = random.sample(pool, 2)
-    else:
-        smart_nums = random.sample(smart_nums, 2)
-    
-    smart_nums = sorted(smart_nums)
-    
-    return {
-        "pred": pred,
-        "conf": conf,
-        "nums": smart_nums,
-        "reason": reason,
-        "dragon": dragon
+        "pattern": None,
+        "pattern_type": "MAJORITY"
     }
 
 # ==================== 📡 API ফেচ ====================
@@ -307,7 +246,6 @@ async def send_hourly_report():
     global hourly_best_win_streak, hourly_worst_loss_streak
     global total_wins, total_losses, total_rounds
     global best_win_streak, worst_loss_streak
-    global match_count, no_match_count
     
     if hourly_rounds == 0:
         return
@@ -316,7 +254,7 @@ async def send_hourly_report():
     total_win_rate = (total_wins / total_rounds * 100) if total_rounds > 0 else 0
     
     report_msg = (
-        f"📊 *আওয়ারলি রিপোর্ট - 5M MATCH/NO MATCH*\n"
+        f"📊 *আওয়ারলি রিপোর্ট - 5M PATTERN MATCHER*\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🕐 *সময়:* {datetime.now().strftime('%I:%M %p')}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -333,9 +271,6 @@ async def send_hourly_report():
         f"📈 *মোট জয়ের হার:* `{total_win_rate:.1f}%`\n"
         f"🔥 *সেরা জয় স্ট্রিক:* `{best_win_streak}x`\n"
         f"📉 *সেরা হার স্ট্রিক:* `{worst_loss_streak}x`\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🎯 *মোট Match:* `{match_count}`\n"
-        f"⚠️ *মোট No Match:* `{no_match_count}`\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🤖 @Tarek3o"
     )
@@ -354,21 +289,25 @@ async def prediction_bot():
     global hourly_wins, hourly_losses, hourly_rounds
     global hourly_best_win_streak, hourly_worst_loss_streak
     global current_streak, best_win_streak, worst_loss_streak
-    global match_count, no_match_count
     global last_predicted_period, last_predicted_signal
-    global prediction_sent_for_period, last_result_sent
+    global last_pattern_matched, prediction_sent_for_period
+    global last_result_sent
 
-    logger.info("🔥 MATCH/NO MATCH - 5M WINGO স্টার্ট...")
+    logger.info("🔥 PATTERN MATCHER - 5M WINGO স্টার্ট...")
+    logger.info(f"📚 5-Digit: {len(PATTERNS_5)} | 6-Digit: {len(PATTERNS_6)} | 7-Digit: {len(PATTERNS_7)}")
+    logger.info(f"📊 মোট প্যাটার্ন: {len(ALL_PATTERNS)}")
+    logger.info("✅ No Pattern = Majority Vote")
 
     await send_message(
-        "🔥 *MATCH / NO MATCH BOT - 5M* 🔥\n"
+        "🔥 *PATTERN MATCHER - 5M WINGO* 🔥\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
-        "🧠 *2 Engines:*\n"
-        "1️⃣ PATTERN MATCHER (PDF 1)\n"
-        "2️⃣ REAL VIP V3 (Neural)\n"
+        "📚 *Pattern Database:*\n"
+        f"• 5-Digit: `{len(PATTERNS_5)}` patterns\n"
+        f"• 6-Digit: `{len(PATTERNS_6)}` patterns\n"
+        f"• 7-Digit: `{len(PATTERNS_7)}` patterns\n"
+        f"• মোট: `{len(ALL_PATTERNS)}` patterns\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
-        "✅ *MATCH* = দুই ইঞ্জিন একমত\n"
-        "⚠️ *NO MATCH* = REAL VIP V3 প্রেডিকশন\n"
+        "✅ *No Pattern = Majority Vote*\n"
         "📡 *মোড:* 5 MIN WINGO\n"
         "🤖 *বট:* @Tarek3o\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
@@ -473,86 +412,50 @@ async def prediction_bot():
             
             if not prediction_sent_for_period.get(next_period, False):
                 
-                # ENGINE 1: PATTERN MATCHER
-                pattern_result = pattern_matcher(history_data)
-                pattern_pred = pattern_result['prediction']
-                
-                # ENGINE 2: REAL VIP V3
-                vip_result = real_vip_v3_engine(history_data)
-                vip_pred = vip_result['pred']
-                vip_nums = vip_result['nums']
-                
-                logger.info(f"🔍 Pattern: {pattern_pred} | VIP: {vip_pred}")
+                pred = pattern_matcher(history_data)
+                last_pattern_matched = pred.get('pattern')
                 
                 streak_emoji = "🔥" if current_streak > 0 else "📉" if current_streak < 0 else "⏸️"
                 
-                # ✅ MATCH Check
-                if pattern_pred == vip_pred:
-                    # MATCH FOUND
-                    match_count += 1
-                    final_pred = pattern_pred
-                    
-                    prediction_msg = (
-                        f"🔥 *MATCH FOUND - 5M WINGO* 🔥\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🆔 পিরিয়ড: `#{next_period[-5:]}`\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"✅ *MATCH FOUND!*\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🎯 প্রেডিকশন: `{final_pred}`\n"
-                        f"⚡ কনফিডেন্স: `{pattern_result['confidence']}%`\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🧠 *Pattern Matcher:* `{pattern_pred}`\n"
-                        f"📊 ইঞ্জিন: {pattern_result['reason']}\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🧠 *REAL VIP V3:* `{vip_pred}`\n"
-                        f"🎰 টার্গেট: `{', '.join(map(str, vip_nums))}`\n"
-                        f"📊 ইঞ্জিন: {vip_result['reason']}\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"{streak_emoji} স্ট্রিক: `{current_streak:+d}`\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"⏳ রেজাল্টের জন্য অপেক্ষা...\n"
-                        f"🤖 @Tarek3o"
-                    )
-                    logger.info(f"✅ MATCH: {next_period} → {final_pred}")
-                
+                # কনফিডেন্স এর উপর ভিত্তি করে রেকমেন্ডেশন
+                if pred['confidence'] >= 80:
+                    rec = "🔥 হাই কনফিডেন্স"
+                elif pred['confidence'] >= 70:
+                    rec = "⚡ মিডিয়াম কনফিডেন্স"
+                elif pred['confidence'] >= 60:
+                    rec = "⚠️ লো কনফিডেন্স"
                 else:
-                    # NO MATCH → Real VIP V3
-                    no_match_count += 1
-                    final_pred = vip_pred
-                    
-                    prediction_msg = (
-                        f"⚠️ *NO MATCH - 5M WINGO* ⚠️\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🆔 পিরিয়ড: `#{next_period[-5:]}`\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"❌ *NO MATCH*\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🎯 প্রেডিকশন (VIP V3): `{final_pred}`\n"
-                        f"🎰 টার্গেট নম্বর: `{', '.join(map(str, vip_nums))}`\n"
-                        f"⚡ কনফিডেন্স: `{vip_result['conf']}`\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🧠 *Pattern Matcher:* `{pattern_pred}`\n"
-                        f"📊 ইঞ্জিন: {pattern_result['reason']}\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🧠 *REAL VIP V3:* `{vip_pred}`\n"
-                        f"📊 ইঞ্জিন: {vip_result['reason']}\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"{streak_emoji} স্ট্রিক: `{current_streak:+d}`\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"⏳ রেজাল্টের জন্য অপেক্ষা...\n"
-                        f"🤖 @Tarek3o"
-                    )
-                    logger.info(f"⚠️ NO MATCH: {next_period} → VIP V3 = {final_pred}")
-                
+                    rec = "🟡 Majority Vote (No Pattern)"
+
+                prediction_msg = (
+                    f"🔥 *PATTERN MATCHER - 5M WINGO* 🔥\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🆔 পিরিয়ড: `#{next_period[-5:]}`\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🎯 প্রেডিকশন: `{pred['prediction']}`\n"
+                    f"⚡ কনফিডেন্স: `{pred['confidence']}%`\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🧠 ইঞ্জিন: {pred['reason']}\n"
+                    f"📊 প্যাটার্ন টাইপ: `{pred['pattern_type']}`\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"💡 রেকমেন্ডেশন:\n"
+                    f"• {rec}\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"{streak_emoji} স্ট্রিক: `{current_streak:+d}`\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"⏳ রেজাল্টের জন্য অপেক্ষা...\n"
+                    f"🤖 @Tarek3o"
+                )
+
                 last_predicted_period = next_period
-                last_predicted_signal = final_pred
+                last_predicted_signal = pred['prediction']
                 prediction_sent_for_period[next_period] = True
                 last_result_sent = False
-                
+
                 await send_message(prediction_msg)
-                
-                if len(prediction_sent_for_period) > 5:
+                logger.info(f"✅ প্রেডিকশন: {next_period} → {pred['prediction']} ({pred['reason']})")
+
+                if len(prediction_sent_for_period) > 10:
                     oldest = min(prediction_sent_for_period.keys())
                     del prediction_sent_for_period[oldest]
 
@@ -562,13 +465,13 @@ async def prediction_bot():
 
 # ==================== 🚀 স্টার্ট ====================
 if __name__ == '__main__':
-    print("🔥 MATCH / NO MATCH BOT - 5M WINGO")
+    print("🔥 PATTERN MATCHER - 5M WINGO")
     print("━━━━━━━━━━━━━━━━━━━━")
-    print("🧠 2 Engines:")
-    print("   1. PATTERN MATCHER (PDF 1)")
-    print("   2. REAL VIP V3 (Neural)")
-    print("✅ MATCH = দুই ইঞ্জিন একমত")
-    print("⚠️ NO MATCH = REAL VIP V3 প্রেডিকশন")
+    print(f"📚 5-Digit Patterns: {len(PATTERNS_5)}")
+    print(f"📚 6-Digit Patterns: {len(PATTERNS_6)}")
+    print(f"📚 7-Digit Patterns: {len(PATTERNS_7)}")
+    print(f"📊 Total: {len(ALL_PATTERNS)}")
+    print("✅ No Pattern = Majority Vote")
     print("📡 MODE: 5 MIN WINGO")
     print("🤖 BOT: @Tarek3o")
     print("━━━━━━━━━━━━━━━━━━━━")
